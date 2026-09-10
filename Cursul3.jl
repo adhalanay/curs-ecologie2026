@@ -418,7 +418,7 @@ md"""
 ### 2.4. Efectul Allee
 În anumite populații (ex: balene, plante care au nevoie de polenizare încrucișată) există un prag minim $a$ sub care populația nu se mai poate reproduce eficient și dispare. 
 
-Modelul matematic:
+Modelul matematic este:
 ```math
 x' = r x \left(1 - \frac{x}{k}\right) \left(\frac{x}{a} - 1\right) 
 ```
@@ -458,6 +458,41 @@ begin
     xlims!(ax11, -0.5, 9.0)
     ylims!(ax11, -6.0, 8.0)
     fig11
+end
+
+# ╔═╡ a8841fb9-bef3-489b-8e48-ba3f29171e79
+md"""
+Studiem mai bine efectul Alle ajustînd parametrii mai jos pentru a observa modificarea dinamicii:
+"""
+
+# ╔═╡ 6716614b-ddf7-4429-a05d-5b7ed29d2a6d
+begin
+	md"""
+	* **Prag Allee ($a$):** $(@bind a_allee PlutoUI.Slider(1.0:1.0:15.0, default=4.0, show_value=true))
+	* **Capacitate suport ($K$):** $(@bind K_allee PlutoUI.Slider(12.0:1.0:30.0, default=20.0, show_value=true))
+	* **Rată creștere ($r$):** $(@bind r_allee PlutoUI.Slider(0.1:0.1:4.0, default=0.5, show_value=true))
+	"""
+end
+
+# ╔═╡ 3bd5f9ea-6e19-4ed6-b1df-263fcddfd531
+begin
+	f_allee_dyn(x) = r_allee * x * (1.0 - x / K_allee) * (x / a_allee - 1.0)
+	
+	fig_a = Figure(size = (1900, 600))
+	ax_a = Axis(fig_a[1, 1], title = "Graficul f(x) pentru Efectul Allee (a=$a_allee, K=$K_allee)", xlabel = "Populație (x)", ylabel = "dx/dt")
+	
+	xs_a = range(0, K_allee + 5, length=250)
+	ys_a = f_allee_dyn.(xs_a)
+	
+	lines!(ax_a, xs_a, ys_a, color = :purple, linewidth = 2.5)
+	hlines!(ax_a, [0.0], color = :black, linestyle = :dash)
+	
+	scatter!(ax_a, [0.0], [0.0], color = :forestgreen, markersize = 12, label = "x*=0 (Stabil: Extincție)")
+	scatter!(ax_a, [a_allee], [0.0], color = :red, markersize = 12, label = "x*=$a_allee (Instabil: Prag Allee)")
+	scatter!(ax_a, [K_allee], [0.0], color = :forestgreen, markersize = 12, label = "x*=$K_allee (Stabil: Capacitate)")
+	
+	axislegend(ax_a, position = :rt)
+	fig_a
 end
 
 # ╔═╡ e9f5d3b2-0c4d-5e6f-9a8b-2d3e4f5a6b7c
@@ -569,6 +604,9 @@ c) Care este valoarea maximă a lui $H$ pentru care populația nu se stinge (fen
 # ╟─9654f5b8-c980-48ca-8dc9-99da68f331a9
 # ╟─c5bd9a17-9455-4a64-a7e6-d7ce4dae29b6
 # ╟─d8f4e2a1-9b3c-4d5e-8f7a-1c2d3e4f5a6b
+# ╟─a8841fb9-bef3-489b-8e48-ba3f29171e79
+# ╠═6716614b-ddf7-4429-a05d-5b7ed29d2a6d
+# ╟─3bd5f9ea-6e19-4ed6-b1df-263fcddfd531
 # ╟─e9f5d3b2-0c4d-5e6f-9a8b-2d3e4f5a6b7c
 # ╟─f0a6e4c3-1d5e-6f7a-0b9c-3e4f5a6b7c8d
 # ╟─a1b7f5d4-2e6f-7a8b-1c0d-4f5a6b7c8d9e
