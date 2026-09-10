@@ -28,4 +28,6 @@ LocalPreferences.toml
 JuliaLocalPreferences.toml
 .ipynb_checkpoints/
 Untitled*
-Test1.jl
+#Test1.jl
+test/
+partial.jl
