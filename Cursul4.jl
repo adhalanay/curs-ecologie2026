@@ -295,40 +295,80 @@ let
 	f_ricker(x) = x * exp(r0 * (1 - x))
 	f_beverton(x) = r0 * x / (1 + (r0 - 1) * x)
 	
-	# Simulare Beverton-Holt
-	bv = [x1]
-	for t in 1:100
-		push!(bv, f_beverton(last(bv)))
+	# Simulări pentru toate cele trei modele
+	n_steps = 200
+	
+	# Verhulst
+	sim_v = [x1]
+	for t in 1:n_steps
+		push!(sim_v, f_verhulst(last(sim_v)))
 	end
 	
-	# Pregătire date pentru grafice
-	xs_log = LinRange(0.0, 1.0, 200)
-	xs_ric = LinRange(0.0, 3.0, 200)
-	xs_bev = LinRange(0.0, 2.0, 200)
+	# Ricker
+	sim_r = [x1]
+	for t in 1:n_steps
+		push!(sim_r, f_ricker(last(sim_r)))
+	end
 	
-	fig_models = Figure(size=(1000, 700))
+	# Beverton-Holt
+	sim_b = [x1]
+	for t in 1:n_steps
+		push!(sim_b, f_beverton(last(sim_b)))
+	end
 	
-	# Rândul 1: Graficele funcțiilor
-	ax1 = Axis(fig_models[1, 1], title="Verhulst (Logistic)", xlabel="xₙ", ylabel="xₙ₊₁")
-	lines!(ax1, xs_log, f_verhulst.(xs_log), color=:red, linewidth=2)
-	lines!(ax1, xs_log, xs_log, color=:black, linestyle=:dash, alpha=0.5)
+	# Pregătire date pentru graficele funcțiilor
+	xs_v = LinRange(0.0, 1.0, 300)
+	xs_r = LinRange(0.0, 3.0, 300)
+	xs_b = LinRange(0.0, 2.0, 300)
 	
-	ax2 = Axis(fig_models[1, 2], title="Ricker", xlabel="xₙ", ylabel="xₙ₊₁")
-	lines!(ax2, xs_ric, f_ricker.(xs_ric), color=:green, linewidth=2)
-	lines!(ax2, xs_ric, xs_ric, color=:black, linestyle=:dash, alpha=0.5)
+	fig_models = Figure(size=(1400, 800))
 	
-	ax3 = Axis(fig_models[1, 3], title="Beverton-Holt", xlabel="xₙ", ylabel="xₙ₊₁")
-	lines!(ax3, xs_bev, f_beverton.(xs_bev), color=:blue, linewidth=2)
-	lines!(ax3, xs_bev, xs_bev, color=:black, linestyle=:dash, alpha=0.5)
+	# === Rândul 1: Graficele funcțiilor f(x) ===
 	
-	# Rândul 2: Simulare Beverton-Holt
-	ax4 = Axis(fig_models[2, 1:3], title="Simulare Beverton-Holt (r = $(round(r0, digits=1)))", xlabel="Timp", ylabel="Populație")
-	lines!(ax4, 0:100, bv, color=:blue, linewidth=2)
-	scatter!(ax4, 0:100, bv, color=:blue, markersize=6)
+	ax1 = Axis(fig_models[1, 1], 
+		title="Verhulst (Logistic)", 
+		xlabel="xₙ", ylabel="xₙ₊₁")
+	lines!(ax1, xs_v, f_verhulst.(xs_v), color=:red, linewidth=2.5, label="f(x)")
+	lines!(ax1, xs_v, xs_v, color=:gray, linestyle=:dash, linewidth=1.5, label="y = x")
+	axislegend(ax1, position=:lt, framevisible=false)
 	
-	# Ajustăm layout-ul
-	rowgap!(fig_models.layout, 20)
-	colgap!(fig_models.layout, 20)
+	ax2 = Axis(fig_models[1, 2], 
+		title="Ricker", 
+		xlabel="xₙ", ylabel="xₙ₊₁")
+	lines!(ax2, xs_r, f_ricker.(xs_r), color=:green, linewidth=2.5, label="f(x)")
+	lines!(ax2, xs_r, xs_r, color=:gray, linestyle=:dash, linewidth=1.5, label="y = x")
+	axislegend(ax2, position=:lt, framevisible=false)
+	
+	ax3 = Axis(fig_models[1, 3], 
+		title="Beverton-Holt", 
+		xlabel="xₙ", ylabel="xₙ₊₁")
+	lines!(ax3, xs_b, f_beverton.(xs_b), color=:blue, linewidth=2.5, label="f(x)")
+	lines!(ax3, xs_b, xs_b, color=:gray, linestyle=:dash, linewidth=1.5, label="y = x")
+	axislegend(ax3, position=:lt, framevisible=false)
+	
+	# === Rândul 2: Simulări în timp ===
+	
+	ax4 = Axis(fig_models[2, 1], 
+		title="Simulare Verhulst  (r = $(round(r0, digits=1)))", 
+		xlabel="Timp (n)", ylabel="Populație")
+	lines!(ax4, 0:n_steps, sim_v, color=:red, linewidth=1.5)
+	scatter!(ax4, 0:n_steps, sim_v, color=:red, markersize=5, strokewidth=0.5, strokecolor=:white)
+	
+	ax5 = Axis(fig_models[2, 2], 
+		title="Simulare Ricker  (r = $(round(r0, digits=1)))", 
+		xlabel="Timp (n)", ylabel="Populație")
+	lines!(ax5, 0:n_steps, sim_r, color=:green, linewidth=1.5)
+	scatter!(ax5, 0:n_steps, sim_r, color=:green, markersize=5, strokewidth=0.5, strokecolor=:white)
+	
+	ax6 = Axis(fig_models[2, 3], 
+		title="Simulare Beverton-Holt  (r = $(round(r0, digits=1)))", 
+		xlabel="Timp (n)", ylabel="Populație")
+	lines!(ax6, 0:n_steps, sim_b, color=:blue, linewidth=1.5)
+	scatter!(ax6, 0:n_steps, sim_b, color=:blue, markersize=5, strokewidth=0.5, strokecolor=:white)
+	
+	# Ajustăm spațierea
+	rowgap!(fig_models.layout, 30)
+	colgap!(fig_models.layout, 25)
 	
 	fig_models
 end
@@ -364,7 +404,7 @@ end
 
 # ╔═╡ 1da460a7-91a8-4fb7-b704-99ea528e991f
 md"""
-🌲 Scenariu: Ești responsabil cu managementul unei populații de pești dintr-un lac. Datele arată că populația urmează un model discret cu r=3.8
+🌲 Scenariu: Ești responsabil cu managementul unei populații de pești dintr-un lac. Datele arată că populația urmează un model discret cu r=3.8.
 
 Bazându-te pe cele învățate în acest curs (diagrama de bifurcație), ce sfat i-ai da directorului privind recoltarea peștilor și predictibilitatea populației pe termen lung? De ce este periculos să presupui că populația va fi constantă de la un an la altul?
 """
@@ -2096,7 +2136,7 @@ version = "4.1.0+0"
 
 # ╔═╡ Cell order:
 # ╟─e7e9e376-adb0-11f1-91f0-f7cc7081a2ec
-# ╠═ce44eb4e-4b93-43fa-9105-1a10e9015ccd
+# ╟─ce44eb4e-4b93-43fa-9105-1a10e9015ccd
 # ╟─5a49c8fe-6d17-4ce3-8865-3c0ba68af9c8
 # ╟─1e558223-6779-4a42-b75c-39e7c1cfb046
 # ╟─aa081a08-4f61-48a9-865b-f3e487b5d231
