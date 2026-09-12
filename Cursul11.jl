@@ -306,6 +306,16 @@ md"""
 Modelează numărul de succese în $n$ experimente independente, fiecare cu probabilitatea $p$.
 """
 
+# ╔═╡ 014d2112-0077-4ad5-812a-07ed451574af
+md"""
+🧬 **Exemplu Biologic: Genetica Mendeliană și Epidemiologia**
+Imaginați-vă doi părinți care sunt purtători sănătoși (heterozigoți, $Aa$) pentru o boală recesivă (ex: fibroza chistică). Probabilitatea ca un copil să fie bolnav (homozigot $aa$) este $p = 0.25$. 
+Dacă familia are $n = 4$ copii, distribuția binomială ne răspunde la întrebarea: *Care este probabilitatea ca exact $k=1$ copil să fie bolnav?*
+$$P(X=1) = \binom{4}{1} 0.25^1 \cdot 0.75^3 \approx 0.42$$
+
+**Alt exemplu:** Dintr-un eșantion de $n=100$ de pacienți vaccinați, dacă eficacitatea vaccinului este de 95% ($p=0.95$), binomiala prezice câți pacienți vor fi protejați și câți se vor infecta totuși.
+"""
+
 # ╔═╡ a1b2c3d4-0014-4a00-8000-000000000021
 md"""
 Numărul de experimente: $n = {}$ $(@bind n_bin PlutoUI.Slider(1:50, default=20, show_value=true))
@@ -336,6 +346,18 @@ md"""
 Modelează numărul de evenimente rare într-un interval fix (ex: substituții amino-acizi). Parametrul $\lambda$ este rata medie.
 """
 
+# ╔═╡ 79dd87de-3d21-476c-a95b-1eec06f8a8ab
+md"""
+🦠 **Exemplu Biologic: Mutații și Microbiologie**
+Distribuția Poisson este „regele” evenimentelor rare în biologie. 
+
+1. **Genetica moleculară:** Dacă rata medie de mutație pentru o genă este de $\lambda = 2$ mutații per $10^6$ diviziuni celulare, Poisson ne spune probabilitatea de a găsi exact $k=0$ (niciun mutant) sau $k=3$ (trei mutanți) într-o cultură de bacterii.
+
+2. **Microbiologie:** Numărul de colonii de bacterii care cresc pe o placă Petri după ce ai împrăștiat un volum fix de $10 \mu L$ dintr-o cultură diluată.
+
+3. **Neurobiologie:** Numărul de potențiale de acțiune (spike-uri) pe care un neuron le generează într-o fereastră de timp foarte scurtă (ex: 10 milisecunde) sub un stimul constant.
+"""
+
 # ╔═╡ a1b2c3d4-0018-4a00-8000-000000000025
 md"""
 Rata medie: $\lambda = {}$ $(@bind λ_pois PlutoUI.Slider(0.1:0.1:20.0, default=5.0, show_value=true))
@@ -362,6 +384,15 @@ end
 md"""
 ### 📏 5.3. Distribuția Normală (Gaussiană)
 Definită de media $\mu$ și deviația standard $\sigma$. Este fundamentul Teoremei Limită Centrale.
+"""
+
+# ╔═╡ a481b8e4-c36c-4384-bd8c-dbd2bc195035
+md"""
+📏 **Exemplu Biologic: Trăsături Poligenice și Erori de Măsurare**
+Datorită Teoremei Limită Centrale, Normala apare oriunde un fenotip este rezultatul sumei a zeci de factori mici și independenți.
+1. **Fiziologie umană:** Tensiunea arterială sistolică a unei populații adulte sănătoase, greutatea la naștere a nou-născuților sau înălțimea adulților. Acestea sunt *trăsături poligenice* (influențate de sute de gene și factori de mediu).
+2. **Biochimie:** Concentrația unui metabolit (ex: glucoza sau colesterolul) în sângele unei populații. Valorile extreme (pe „cozile” clopotului) reprezintă indivizii bolnavi (ex: diabet, hipercolesterolemie).
+3. **Laborator:** Erorile de măsurare ale unui spectrofotometru când măsoară absorbția unei probe. Media erorilor este zero, iar ele se distribuie normal în jurul valorii reale.
 """
 
 # ╔═╡ a1b2c3d4-0021-4a00-8000-000000000028
@@ -455,13 +486,16 @@ md"""
 # ╟─a1b2c3d4-0012-4a00-8000-000000000018
 # ╟─a1b2c3d4-0013-4a00-8000-000000000019
 # ╟─a1b2c3d4-0014-4a00-8000-000000000020
+# ╟─014d2112-0077-4ad5-812a-07ed451574af
 # ╟─a1b2c3d4-0014-4a00-8000-000000000021
 # ╟─a1b2c3d4-0015-4a00-8000-000000000022
 # ╠═a1b2c3d4-0016-4a00-8000-000000000023
 # ╟─a1b2c3d4-0017-4a00-8000-000000000024
+# ╟─79dd87de-3d21-476c-a95b-1eec06f8a8ab
 # ╟─a1b2c3d4-0018-4a00-8000-000000000025
 # ╠═a1b2c3d4-0019-4a00-8000-000000000026
 # ╟─a1b2c3d4-0020-4a00-8000-000000000027
+# ╟─a481b8e4-c36c-4384-bd8c-dbd2bc195035
 # ╟─a1b2c3d4-0021-4a00-8000-000000000028
 # ╟─a1b2c3d4-0022-4a00-8000-000000000029
 # ╠═a1b2c3d4-0023-4a00-8000-000000000030
