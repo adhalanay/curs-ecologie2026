@@ -456,9 +456,7 @@ md"""
 ### Întrebări de reflecție
 1. De ce este necesară o "întârziere" (delay) sau cel puțin 3 variabile de stare pentru a obține oscilații stable prin feedback negativ?
 2. În modelul Holling-Tanner, cum explici din punct de vedere ecologic "paradoxul îmbogățirii" (creșterea lui $w$ duce la oscilații mai ample, risc de extincție)?
-3. Ce se întâmplă cu valorile proprii ale matricei Jacobiene în momentul în care un sistem suferă o bifurcație Hopf? (Indiciu: urmărește evoluția părții reale și a celei imaginare pe măsură ce parametrul traversează valoarea critică).
-
----
+3. Ce înseamnă din punct de vedere calitativ o **bifurcație** și cum ne ajută studiul ei să înțelegem tranzițiile bruște din sistemele biologice (de exemplu, trecerea de la coexistență pașnică la oscilații periculoase în modelul Holling-Tanner)?
 
 ---
 **✨ Sfârșitul Cursului 6 ✨**
@@ -498,4 +496,4 @@ md"""
 # ╟─a1b2c3d4-0027-4a00-8000-000000000027
 # ╟─a1b2c3d4-0028-4a00-8000-000000000028
 # ╟─a1b2c3d4-0029-4a00-8000-000000000029
-# ╟─a1b2c3d4-0030-4a00-8000-000000000030
+# ╠═a1b2c3d4-0030-4a00-8000-000000000030
