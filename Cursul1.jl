@@ -601,13 +601,23 @@ end
 md"""
 ### ✅ Verificare rapidă
 1. Pe un grafic semi-logaritmic, numărul de bacterii dintr-o cultură apare ca o dreaptă care urcă cu o diviziune (adică de 10 ori) la fiecare 3 ore. Ce formulă are $N(t)$? În cît timp se dublează populația?
+"""
 
-$(hint(md"Dreapta în semi-log înseamnă $\log_{10} N = \log_{10} N_0 + t/3$, deci $N(t) = N_0 \cdot 10^{t/3}$. Dublarea: $10^{t/3} = 2 \Rightarrow t = 3\log_{10} 2 \approx 0.9$ ore, adică aproximativ 54 de minute."))
+
+
+# ╔═╡ 17c910ec-7256-4ba0-8ee6-d29c1642703e
+hint(md"Dreapta în semi-log înseamnă ``\log_{10} N = \log_{10} N_0 + t/3``, deci ``N(t) = N_0 \cdot 10^{t/3}``")
+
+# ╔═╡ d8ac2f4c-cc9f-4e12-9275-c429dc65010b
+md"""
+Dublarea: $10^{t/3} = 2 \Rightarrow t = 3\log_{10} 2 \approx 0.9$ ore, adică aproximativ 54 de minute."))
 
 2. Graficul funcției $g(x) = -(x+1)^2 + 3$ se obține din graficul lui $x^2$ prin ce transformări? Care este imaginea lui $g$?
-
-$(hint(md"Translație cu 1 la stînga ($h=-1$), reflexie față de $Ox$ ($A=-1$), translație cu 3 în sus ($k=3$). Vîrful este în $(-1, 3)$ și parabola este cu deschiderea în jos, deci imaginea este $(-\infty, 3]$."))
 """
+
+
+# ╔═╡ 1549ca87-3cb5-497b-b812-b66fc8e4d73a
+hint(md"Translație cu 1 la stînga (``h=-1``), reflexie față de ``Ox`` (``A=-1``), translație cu 3 în sus (``k=3``). Vîrful este în ``(-1, 3)`` și parabola este cu deschiderea în jos, deci imaginea este ``(-\infty, 3]``.")
 
 # ╔═╡ 7d5f4320-933e-4358-8322-dcf613a8e702
 md"""
@@ -719,7 +729,7 @@ Alegeți un sistem biologic cu feedback, descrieți:
 # ╠═ccc7e71a-1ce3-4bf0-92fb-9906287c5176
 # ╟─b1c2d3e4-5f6a-7b8c-9d0e-1f2a3b4c5d6e
 # ╟─1855e998-fc81-4de3-b833-e903669b6f03
-# ╠═215a9db0-9667-11f0-3e8b-db501bdbd2d5
+# ╟─215a9db0-9667-11f0-3e8b-db501bdbd2d5
 # ╟─8c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f
 # ╟─11efb0cf-73b4-4d19-b0f7-612a5abec2d3
 # ╟─9f282b4f-da9c-49b1-94ef-03cbe39ca1f9
@@ -734,7 +744,7 @@ Alegeți un sistem biologic cu feedback, descrieți:
 # ╟─291381ae-569e-4335-9110-b3af9bee2c9f
 # ╟─839ddca1-d3ba-4d99-b15f-a795b040c161
 # ╟─778d276d-9c3c-49c7-9d44-14baf3ae16e7
-# ╠═e4d39336-7ddd-4619-9288-6169aadd6a0e
+# ╟─e4d39336-7ddd-4619-9288-6169aadd6a0e
 # ╟─8c24d3d5-bc4f-4f41-a7da-c8d4a4be8077
 # ╟─e4d67807-c4cb-4573-a8a9-2b7ba7e59fc9
 # ╟─928d4fd2-74ad-48a5-8c83-b24156dca337
@@ -750,6 +760,9 @@ Alegeți un sistem biologic cu feedback, descrieți:
 # ╟─803b1d6b-e26b-44eb-917d-d0265c228b14
 # ╟─4f5a7238-8855-44b1-8afa-b774958caaf0
 # ╟─39adb7af-b1f0-4cf0-93ea-be4063654c55
+# ╠═17c910ec-7256-4ba0-8ee6-d29c1642703e
+# ╠═d8ac2f4c-cc9f-4e12-9275-c429dc65010b
+# ╠═1549ca87-3cb5-497b-b812-b66fc8e4d73a
 # ╟─7d5f4320-933e-4358-8322-dcf613a8e702
 # ╟─920b2efd-f83f-4300-b34f-b9695cf1079b
 # ╟─5b1a6088-d669-4892-9ab4-1068dc68ec3f
