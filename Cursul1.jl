@@ -186,7 +186,7 @@ Avem feedback pozitiv dacă o valoare pozitivă a unei variabile determină cre�
 ### 📉 Feedback negativ
 Avem feedback negativ dacă o valoare pozitivă a unei variabile determină scăderea ei, iar o valoare negativă determină creșterea ei.
 **Exemplu:** aerul condiționat.
-Fie `T_0` temperatura setată și `C` temperatura curentă. Definim: $T = C - T_0$.
+Fie ``T_0`` temperatura setată și `C` temperatura curentă. Definim: $T = C - T_0$.
 - dacă `T > 0`, sistemul răcește;
 - dacă `T < 0`, sistemul încălzește.
 
