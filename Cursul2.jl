@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v1.0.3
+# v1.0.4
 
 using Markdown
 using InteractiveUtils
@@ -321,11 +321,11 @@ end
 # ╔═╡ 66666666-6666-6666-6666-666666666666
 # ╠═╡ skip_as_script = true
 #=╠═╡
-md"""
----
-⏸️ **Pauză**: Acesta este un moment excelent pentru o scurtă pauză de 10 minute. Am acoperit modelarea, geometria și simularea numerică. Urmează partea a doua, mai densă matematic: calculul diferențial.
----
-"""
+# md"""
+#---
+# ⏸️ **Pauză**: Acesta este un moment excelent pentru o scurtă pauză de 10 minute. Am acoperit modelarea, geometria și simularea numerică. Urmează partea a doua, mai # # densă matematic: calculul diferențial.
+# ---
+#"""
   ╠═╡ =#
 
 # ╔═╡ 77777777-7777-7777-7777-777777777777
@@ -572,7 +572,7 @@ Fie ecuația cercului $x^2 + y^2 = 25$.
 # ╟─2effecea-a41d-11f0-030d-0dea9a2cf25b
 # ╠═f828c688-8ac5-45a4-8183-b89c16f51194
 # ╟─1038b688-8ac5-45a4-8183-b89c16f51194
-# ╠═11111111-1111-1111-1111-111111111111
+# ╟─11111111-1111-1111-1111-111111111111
 # ╟─e20606c5-ffa3-4d6b-81b8-b73df73e0305
 # ╟─22222222-2222-2222-2222-222222222222
 # ╟─17aa5b94-b3be-45d2-b694-b86a290104ab
@@ -583,7 +583,7 @@ Fie ecuația cercului $x^2 + y^2 = 25$.
 # ╟─33333333-3333-3333-3333-333333333333
 # ╠═44444444-4444-4444-4444-444444444444
 # ╟─55555555-5555-5555-5555-555555555555
-# ╠═66666666-6666-6666-6666-666666666666
+# ╟─66666666-6666-6666-6666-666666666666
 # ╟─77777777-7777-7777-7777-777777777777
 # ╟─3e0bc92d-b1d9-4d5b-b0ce-a066f13efcd6
 # ╟─277dd939-0ca4-42c5-b36a-6024d8d9f350
