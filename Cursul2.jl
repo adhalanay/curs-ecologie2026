@@ -23,6 +23,7 @@ begin
 	using Makie, CairoMakie
 	using PlutoUI
 	using DifferentialEquations
+	using PlutoTeachingTools
 	TableOfContents()
 end
 
@@ -45,6 +46,9 @@ begin
 	lines!(t3,y4)
 	fig6
 end
+
+# ╔═╡ bb225bed-2138-4ded-b9f8-9b48fbf72a0a
+WidthOverDocs()
 
 # ╔═╡ 1038b688-8ac5-45a4-8183-b89c16f51194
 html"""
@@ -570,7 +574,8 @@ Fie ecuația cercului $x^2 + y^2 = 25$.
 
 # ╔═╡ Cell order:
 # ╟─2effecea-a41d-11f0-030d-0dea9a2cf25b
-# ╠═f828c688-8ac5-45a4-8183-b89c16f51194
+# ╟─bb225bed-2138-4ded-b9f8-9b48fbf72a0a
+# ╟─f828c688-8ac5-45a4-8183-b89c16f51194
 # ╟─1038b688-8ac5-45a4-8183-b89c16f51194
 # ╟─11111111-1111-1111-1111-111111111111
 # ╟─e20606c5-ffa3-4d6b-81b8-b73df73e0305
