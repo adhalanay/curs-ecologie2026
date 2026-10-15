@@ -163,16 +163,6 @@ md"""
 4. Să găsim **punctele de echilibru** ale unei ecuații ``x' = f(x)`` și să le determinăm **stabilitatea** (linia de fază și criteriul derivatei).
 5. Să aplicăm aceste instrumente la **modelul logistic**, la **pescuit** și la **efectul Allee**.
 
-| Secțiune | Timp |
-|:---|:---:|
-| 0. Ce știm deja | 5 min |
-| 1. De la derivată la integrală | 10 min |
-| 2. Sume Riemann și teorema fundamentală | 20 min |
-| 3. Creștere și descompunere exponențială | 15 min |
-| 4. Modelul logistic și punctele de echilibru | 15 min |
-| 5. Stabilitatea echilibrelor | 15 min |
-| 6. Efectul Allee | 15 min |
-| 7. Recapitulare și exerciții | 5 min |
 """
 
 # ╔═╡ 6b69614e-1a69-4aa3-a0f7-79bfb85b32c7
@@ -363,7 +353,7 @@ Verificare: ``\big(x(0)e^{rt}\big)' = r\,x(0)e^{rt} = r\,x(t)``. ✔
 - ``r > 0``: **creștere exponențială** (bacterii într-un mediu bogat, o specie invazivă la început);
 - ``r < 0``: **descompunere exponențială** (dezintegrare radioactivă, eliminarea unui medicament din sînge).
 
-**Timpul de dublare / de înjumătățire.** Căutăm ``T`` cu ``x(T) = 2x(0)``, adică ``e^{rT} = 2``:
+**Timpul de dublare / de înjumătățire.** Căutăm ``T`` cu ``x(T) = 2x(0)``, adică ``e^{rT} = 2``, respectiv ``x(T)=\frac{1}{2}x(0)`` și ``e^{rT}=\frac{1}{2}``:
 ```math
 T_2 = \frac{\ln 2}{r} \quad (r>0), \qquad\qquad T_{1/2} = \frac{\ln 2}{\lvert r\rvert} \quad (r<0).
 ```
