@@ -1,5 +1,12 @@
 ### A Pluto.jl notebook ###
-# v1.0.3
+# v1.0.4
+
+#> [frontmatter]
+#> title = "Cursul IV"
+#> description = "Sisteme dinamice discrete și haos"
+#> 
+#>     [[frontmatter.author]]
+#>     name = "Andrei Halanay"
 
 using Markdown
 using InteractiveUtils
@@ -18,2142 +25,769 @@ end
 
 # ╔═╡ e7e9e376-adb0-11f1-91f0-f7cc7081a2ec
 begin
+	using Pkg
+	Pkg.activate(".")
 	using Makie, CairoMakie
 	using PlutoUI
 	using PlutoTeachingTools
-	
+	using Printf
+
 	# Setăm o temă vizuală curată și modernă pentru grafice
 	CairoMakie.activate!(type = "svg")
 	set_theme!(theme_minimal())
-	
+
 	TableOfContents()
 end
 
 # ╔═╡ ce44eb4e-4b93-43fa-9105-1a10e9015ccd
 WidthOverDocs()
 
+# ╔═╡ f612f2c6-5756-406d-ae1d-f4d55b03e87f
+begin
+	# cele trei modele din curs, cu capacitatea de suport normalizată la K = 1
+	f_logistic(x, r) = r * x * (1 - x)
+	f_ricker(x, r) = x * exp(r * (1 - x))
+	f_beverton(x, r) = r * x / (1 + (r - 1) * x)
+
+	# primii n pași ai sistemului x_{k+1} = f(x_k), pornind din x₀
+	function itereaza(f, x0, n)
+		xs = [float(x0)]
+		for k in 1:n
+			push!(xs, f(xs[end]))
+		end
+		xs
+	end
+
+	# diagrama pînză de păianjen: graficul lui f, prima bisectoare și n pași ai iterației
+	function panza!(ax, f, x0, n, xmin, xmax; culoare = :darkorange)
+		xs = range(xmin, xmax, length = 400)
+		lines!(ax, xs, xs, color = :gray, linestyle = :dash, linewidth = 1.5)
+		lines!(ax, xs, f.(xs), color = :teal, linewidth = 3)
+		traj = itereaza(f, x0, n)
+		px, py = [traj[1]], [0.0]                       # pornim de pe axa Ox
+		for k in 1:n
+			push!(px, traj[k], traj[k+1])               # vertical pînă la grafic,
+			push!(py, traj[k+1], traj[k+1])             # apoi orizontal pînă la bisectoare
+		end
+		lines!(ax, px, py, color = (culoare, 0.8), linewidth = 1.5)
+		scatter!(ax, [x0], [0.0], color = culoare, markersize = 12)
+		xlims!(ax, xmin, xmax)
+		traj
+	end
+	nothing
+end
+
 # ╔═╡ 5a49c8fe-6d17-4ce3-8865-3c0ba68af9c8
 md"""
-# 🌿 Cursul 4: Sisteme Dinamice Discrete și Haos
+# 🌿 Cursul 4 — Sisteme dinamice discrete și haos
 
-**Bun venit!** În acest curs vom explora cum putem modela evoluția populațiilor care se reproduc în anumite momente fixe de timp. Spre deosebire de ecuațiile diferențiale (unde timpul curge continuu), aici timpul "sare" dintr-un punct în altul: $t = 0, 1, 2, \dots$
+**Durata estimată:** 100 minute
+"""
 
-> 💡 **Exemple din natură:** 
-> * 🐟 **Somonul de Pacific** (specii semelpare): se reproduc o singură dată în viață, apoi mor.
-> * 🦗 **Magicicada**: iese din hibernare o dată la 13 sau 17 ani pentru a se reproduce.
+# ╔═╡ e07e94e7-938f-4546-b9cc-71f297ba1234
+md"""
+## 🎯 Obiectivele lecției
+1. Să modelăm populațiile cu **generații care nu se suprapun** prin ecuații cu diferențe ``x_{n+1} = f(x_n)``.
+2. Să rezolvăm modelul de **creștere geometrică** și să îl legăm de creșterea exponențială și de metoda Euler.
+3. Să găsim **punctele de echilibru** ``x^* = f(x^*)`` și să le determinăm stabilitatea, grafic (**diagrama pînză de păianjen**) și analitic (**criteriul ``\lvert f'(x^*)\rvert < 1``**).
+4. Să urmărim, în **modelul logistic discret**, drumul de la echilibru la **cicluri periodice** și la **haos** (diagrama de bifurcație, exponentul Liapunov).
+5. Să comparăm modelele **Ricker** și **Beverton–Holt**, folosite în gestionarea pescuitului.
+"""
+
+# ╔═╡ 9f47681d-543a-40f2-a663-cc685f395057
+md"""
+## 🔁 0. Ce știm deja
+În Cursul 3 am studiat ecuații în **timp continuu**, ``x' = f(x)``:
+- echilibrele sînt soluțiile ecuației ``f(x^*) = 0``;
+- un echilibru este stabil dacă ``f'(x^*) < 0`` și instabil dacă ``f'(x^*) > 0``;
+- soluțiile sînt **monotone**: nu pot traversa un echilibru, deci nu pot oscila.
+
+Multe specii însă **nu se reproduc continuu**, ci în pulsuri, o dată pe sezon:
+
+> 💡 **Exemple din natură:**
+> * 🐟 **Somonul de Pacific** (specie semelpară): se reproduce o singură dată în viață, apoi moare.
+> * 🦗 **Magicicada**: trăiește 13 sau 17 ani sub pămînt ca nimfă, apoi toți indivizii ies în același an pentru a se reproduce.
 > * 🌸 **Planta secolului** (*Agave americana*): înflorește după zeci de ani, produce semințe și apoi moare.
+> * 🦋 Multe **insecte din zona temperată**: o singură generație pe an, adulții mor înainte să apară urmașii.
 
-Pentru a înțelege aceste specii, avem nevoie de **sisteme discrete** (sau ecuații cu diferențe finite).
+Pentru astfel de specii este natural să numărăm populația o dată pe generație: ``x_0, x_1, x_2, \dots``. Timpul nu mai „curge”, ci **sare** din generație în generație, iar modelul devine o **ecuație cu diferențe** (sau **sistem dinamic discret**):
+```math
+x_{n+1} = f(x_n), \qquad n = 0, 1, 2, \dots
+```
+Funcția ``f`` spune cîți indivizi vor fi în generația următoare, știind cîți sînt acum. Cunoscînd ``x_0``, întregul viitor este determinat:
+```math
+x_1 = f(x_0), \quad x_2 = f(f(x_0)), \quad \dots, \quad x_n = \underbrace{f(f(\cdots f}_{n\ \text{ori}}(x_0))) = f^{n}(x_0).
+```
+Atenție: aici ``f^{n}`` înseamnă **compunerea** lui ``f`` cu ea însăși de ``n`` ori, nu puterea ``n``.
+
+Am mai întîlnit un astfel de sistem: **metoda Euler** ``x_{n+1} = x_n + \Delta t\, f(x_n)`` este o ecuație cu diferențe.
+
+> 🎬 **Surpriza cursului:** ecuația logistică, care în timp continuu are un comportament liniștit (orice soluție tinde monoton la ``K``), poate produce în timp discret **oscilații**, **cicluri** și **haos**.
 """
 
 # ╔═╡ 1e558223-6779-4a42-b75c-39e7c1cfb046
 md"""
-## 1. Sisteme Exponențiale: Creșterea nelimitată
+## 📈 1. Creșterea geometrică
 
-Dinamica unui sistem discret este dată de relația de recurență:
-$$x_{t+1} = f(x_t)$$
-unde $x_t$ este starea sistemului (ex. numărul de indivizi) la momentul $t$.
+**Cel mai simplu model:** o populație de căprioare crește cu ``5\%`` pe an. Dacă ``x_n`` este numărul de căprioare din anul ``n``, atunci
+```math
+x_{n+1} = x_n + 0.05\,x_n = 1.05\,x_n .
+```
+În general, dacă fiecare individ lasă în medie ``\lambda`` urmași (incluzîndu-l pe el însuși, dacă supraviețuiește), obținem modelul de **creștere geometrică**
+```math
+x_{n+1} = \lambda\, x_n \quad\Longrightarrow\quad x_n = \lambda^n x_0 .
+```
+- ``\lambda < 1``: populația scade geometric către ``0`` (extincție);
+- ``\lambda = 1``: populația rămîne constantă;
+- ``\lambda > 1``: populația crește nelimitat.
 
-**Cel mai simplu model:** Să presupunem că avem o populație de căprioare care crește cu $5\%$ pe an. 
-Dacă notăm cu $x_n$ populația din anul $n$, atunci:
-$$x_{n+1} = x_n + 0.05x_n = 1.05x_n$$
+**Legătura cu timpul continuu.** Scriind ``\lambda = e^{r}``, adică ``r = \ln \lambda``, obținem ``x_n = x_0 e^{rn}``: exact soluția ecuației ``x' = rx`` din Cursul 3, citită la momentele ``t = 0, 1, 2, \dots`` Timpul de dublare este deci
+```math
+T_2 = \frac{\ln 2}{\ln \lambda}.
+```
+Pe de altă parte, metoda Euler cu pasul ``\Delta t`` aplicată ecuației ``x' = rx`` dă ``x_{n+1} = (1 + r\Delta t)\,x_n``, tot o creștere geometrică, cu ``\lambda = 1 + r\Delta t``.
 
-Acesta este un **sistem exponențial** de forma $x_{t+1} = r \cdot x_t$. 
-Soluția explicită este ușor de găsit: $x_t = r^t \cdot x_0$.
-
-### 🎛️ Experimentează:
-Modifică valoarea ratei de creștere $r$ folosind slider-ul de mai jos și observă ce se întâmplă cu populația în 50 de ani.
+### 🎛️ Experimentați
+Modificați rata de creștere ``\lambda`` și populația inițială ``x_0`` și observați evoluția populației în 50 de ani.
 """
 
 # ╔═╡ aa081a08-4f61-48a9-865b-f3e487b5d231
 md"""
-Rata de creștere $r$: $(@bind r PlutoUI.Slider(0.01:0.01:1.5, show_value=true, default=1.05))
+Rata de creștere ``\lambda``: $(@bind λ_geo PlutoUI.Slider(0.80:0.01:1.20, show_value=true, default=1.05))
+
+Populația inițială ``x_0``: $(@bind x0_geo PlutoUI.Slider(0.5:0.5:5.0, show_value=true, default=1.0))
 """
 
 # ╔═╡ 09fd950e-89f8-4627-adfd-ae595cacc545
-begin
-	# Simulare sistem exponențial
-	x0 = 1.0
-	f_r(x) = r * x
-	xsr = [x0]
-	for t in 1:50
-		push!(xsr, f_r(last(xsr)))
-	end
-	
-	# Vizualizare cu Makie
-	timp = 0:50
-	fig1 = Figure(size=(800, 400))
-	ax1 = Axis(fig1[1, 1], 
-		title="Evoluția exponențială a populației", 
-		xlabel="Timp (ani)", 
-		ylabel="Populație (xₜ)",
-		limits=(0, 50, 0, maximum(xsr) * 1.1 + 0.1)
+let
+	xs = itereaza(x -> λ_geo * x, x0_geo, 50)
+	subtitlu = λ_geo > 1 ? @sprintf("timp de dublare T₂ = ln 2 / ln λ ≈ %.1f ani", log(2) / log(λ_geo)) :
+		λ_geo < 1 ? @sprintf("timp de înjumătățire ln 2 / |ln λ| ≈ %.1f ani", log(2) / abs(log(λ_geo))) :
+		"populație constantă"
+
+	fig = Figure(size = (900, 400))
+	ax = Axis(fig[1, 1],
+		title = "Creștere geometrică: xₙ = λⁿ x₀,  λ = $(λ_geo)",
+		subtitle = subtitlu,
+		xlabel = "Timp (ani)",
+		ylabel = "Populație (xₙ)",
+		limits = (0, 50, 0, nothing)
 	)
-	
-	# Desenăm linia de evoluție și punctele
-	lines!(ax1, timp, xsr, color=:teal, linewidth=2)
-	scatter!(ax1, timp, xsr, color=:teal, markersize=8, strokewidth=1, strokecolor=:white)
-	
-	fig1
+	lines!(ax, 0:50, xs, color = :teal, linewidth = 2)
+	scatter!(ax, 0:50, xs, color = :teal, markersize = 8, strokewidth = 1, strokecolor = :white)
+	fig
 end
 
 # ╔═╡ 182c62ba-84ab-4233-b7d1-12a534582095
 md"""
-### 📌 Concluzii parțiale: Sisteme Exponențiale
-* Dacă **$r < 1$**, populația scade și tinde spre $0$ (extincție).
-* Dacă **$r = 1$**, populația rămâne constantă.
-* Dacă **$r > 1$**, populația crește exponențial spre infinit.
-* *Viteza* de creștere este proporțională cu populația curentă. Cu cât populația e mai mare, cu atât crește mai repede!
+### 📌 Concluzii parțiale
+* Creșterea geometrică este varianta discretă a creșterii exponențiale.
+* Creșterea absolută ``x_{n+1} - x_n = (\lambda - 1)\,x_n`` este **proporțională cu populația**: cu cît populația este mai mare, cu atît crește mai mult.
+* Modelul este realist doar pe termen scurt: nicio populație nu crește la nesfîrșit.
 
-### 📝 Exercițiul 1: Explorare
-> ❓ **Întrebare:** Privind graficul de mai sus, dacă dublăm populația inițială $x_0$ (de la 1.0 la 2.0), cum se modifică graficul pentru $r = 1.1$? 
-> *A) Se dublează și valorile de pe axa Y.*
-> *B) Rămâne la fel.*
-> *C) Crește exponențial mai repede, dar nu se dublează exact.*
-> 
-> 💡 *Sfat: Poți modifica direct `x0 = 1.0` în celula de cod de mai sus pentru a verifica!*
+### ✅ Verificare rapidă
+1. Dacă dublăm populația inițială ``x_0`` (de la 1 la 2), ce se întîmplă cu graficul pentru ``\lambda = 1.1``? Verificați cu slider-ele.
+2. O populație de căprioare crește cu ``5\%`` pe an. În cîți ani se dublează?
 """
+
+# ╔═╡ 2c8f0921-8e71-49a9-b910-9940abcd25bd
+hint(md"1. Toate valorile se dublează, deoarece ``x_n = \lambda^n x_0`` este proporțional cu ``x_0`` (modelul este **liniar**); forma graficului nu se schimbă. 2. ``T_2 = \ln 2 / \ln 1.05 \approx 0.693 / 0.0488 \approx 14.2`` ani.")
 
 # ╔═╡ dabc61af-b537-48ac-9e20-caca44da4b65
 md"""
----
-## 2. Modelul Logistic: Resurse limitate
+## 🌾 2. Modelul logistic discret
 
-În realitate, niciun mediu nu poate susține o creștere exponențială la infinit. Să studiem **modelul logistic discret**, introdus de Robert May în 1976.
+Ca în timp continuu, presupunem că mediul poate susține cel mult ``K`` indivizi (**capacitatea de suport**) și că rata de reproducere scade cînd resursele se împuținează:
+* o populație ``x_n`` consumă fracțiunea ``\frac{x_n}{K}`` din resurse;
+* rămîne liberă fracțiunea ``1 - \frac{x_n}{K}``;
+* fiecare individ lasă un număr de urmași proporțional cu resursele libere, cu factorul ``r``.
 
-Presupunem că mediul suportă maximum $k$ insecte (capacitatea de încărcare). 
-* Dacă populația este $x_n$, ea consumă $\frac{x_n}{k}$ resurse.
-* Resursele neutilizate sunt $1 - \frac{x_n}{k}$.
-* Rata nașterilor este proporțională cu aceste resurse disponibile, cu un factor $r$.
-
-Obținem funcția:
+Obținem funcția
 ```math
- f(x) = r \cdot x \cdot \left(1 - \frac{x}{k}\right) 
+ f(x) = r\, x \left(1 - \frac{x}{K}\right) .
 ```
-
-Pentru simplitate, normalizăm capacitatea mediului la $k=1$. Sistemul devine celebra **ecuație logistică**:
-
+Măsurînd populația ca fracțiune din capacitatea de suport (adică normalizînd ``K = 1``), obținem celebrul **model logistic discret**, popularizat de ecologul **Robert May** în 1976:
 ```math
-x_{n+1} = r \cdot x_n \cdot (1 - x_n)
+x_{n+1} = r\, x_n (1 - x_n), \qquad 0 \le x_n \le 1 .
 ```
+Graficul lui ``f`` este o parabolă cu maximul ``f(1/2) = r/4``. Ca populația să rămînă în intervalul ``[0, 1]``, trebuie ca ``0 \le r \le 4``.
+
+### 🎛️ Experimentați
+Mutați slider-ul pentru ``r`` și urmăriți ce se întîmplă. Încercați, pe rînd, ``r = 0.8,\ 1.8,\ 2.8,\ 3.2,\ 3.5,\ 3.9``.
 """
 
 # ╔═╡ 2a3b4bbb-7891-455c-99e0-d820d1b4ffe3
 md"""
-Valoarea inițială $x_0$: $(@bind x1 PlutoUI.Slider(0.001:0.001:0.999, show_value=true, default=0.5))
+Valoarea inițială ``x_0``: $(@bind x0_log PlutoUI.Slider(0.01:0.01:0.99, show_value=true, default=0.1))
 
-Parametrul $r$: $(@bind r1 PlutoUI.Slider(0.1:0.01:4.0, show_value=true, default=2.5))
+Parametrul ``r``: $(@bind r_log PlutoUI.Slider(0.1:0.01:4.0, show_value=true, default=2.8))
 """
 
 # ╔═╡ b46b9ded-0cd2-4fec-a51c-17baaaf52db9
-begin
-	# Simulare Model Logistic
-	f_l(x) = r1 * x * (1 - x)
-	xs1 = [x1]
-	for t in 1:400
-		push!(xs1, f_l(last(xs1)))
-	end
-	
-	timp_log = 0:400
-	
-	fig2 = Figure(size=(900, 400))
-	ax2 = Axis(fig2[1, 1], 
-		title="Modelul Logistic: Evoluția în timp (r = $(round(r1, digits=2)))", 
-		xlabel="Timp (n)", 
-		ylabel="Populație normalizată (xₙ)",
-		limits=(0, 400, 0, 1.1)
+let
+	n = 100
+	xs = itereaza(x -> f_logistic(x, r_log), x0_log, n)
+
+	fig = Figure(size = (900, 400))
+	ax = Axis(fig[1, 1],
+		title = "Modelul logistic discret: xₙ₊₁ = r xₙ (1 − xₙ),  r = $(r_log)",
+		xlabel = "Generația (n)",
+		ylabel = "Populație normalizată (xₙ)",
+		limits = (0, n, 0, 1.05)
 	)
-	
-	lines!(ax2, timp_log, xs1, color=:darkorange, linewidth=1.5)
-	scatter!(ax2, timp_log, xs1, color=:darkorange, markersize=4, alpha=0.6)
-	
-	# Adăugăm o linie orizontală pentru punctul de echilibru
-	if r1 > 1 && r1 <= 3
-		eq_point = (r1 - 1) / r1
-		hlines!(ax2, [eq_point], color=:purple, linestyle=:dash, linewidth=2, label="Echilibru teoretic")
-		axislegend(ax2, position=:rt)
+	if r_log > 1
+		hlines!(ax, [1 - 1 / r_log], color = :purple, linestyle = :dash, linewidth = 2,
+			label = "x* = 1 − 1/r")
+		axislegend(ax, position = :rt)
 	end
-	
-	fig2
+	lines!(ax, 0:n, xs, color = :darkorange, linewidth = 1.5)
+	scatter!(ax, 0:n, xs, color = :darkorange, markersize = 6)
+	fig
 end
 
 # ╔═╡ 4ce78424-8bc8-4cc4-986b-3ad350e627e1
 md"""
-### 🗺️ Harta comportamentelor (Regimuri dinamice)
-Mută slider-ul pentru $r$ și observă tranzițiile fascinante:
+### 🤔 Ce am observat?
+* Pentru ``r < 1`` populația dispare, iar pentru ``1 < r < 3`` ea se stabilizează la nivelul ``x^* = 1 - \frac{1}{r}`` (linia mov).
+* Pentru ``2 < r < 3`` populația **oscilează** în jurul echilibrului înainte de a se stabiliza. Pentru ecuația logistică continuă acest lucru era imposibil!
+* Pentru ``r`` puțin mai mare decît ``3`` populația alternează între **două valori**, iar pentru ``r`` aproape de ``4`` pare să se comporte **la întîmplare**.
 
-| Interval pentru $r$ | Comportamentul sistemului |
-| :--- | :--- |
-| $0 \leq r < 1$ | 📉 **Extincție**: Orice valoare inițială tinde la `0`. |
-| $1 \leq r \leq 2$ | 🎯 **Stabilitate simplă**: Tinde spre echilibrul $\frac{r-1}{r}$ direct. |
-| $2 < r \leq 3$ | 🎯 **Stabilitate cu oscilații**: Tinde spre $\frac{r-1}{r}$, dar oscilează înainte de a se stabiliza. |
-| $3 < r \leq 3.449$ | 🔄 **Perioadă 2**: Populația alternează între 2 valori (bifurcație). |
-| $3.449 < r \leq 3.54$ | 🔄 **Perioade 4, 8, 16...**: Dublarea rapidă a perioadei. |
-| $r > 3.57$ | 🌪️ **HAOS**: Comportament aparent imprevizibil, deși determinist! |
+**De ce oscilează?** În timp continuu populația „simte” imediat cînd se apropie de ``K`` și încetinește. În timp discret, întreaga generație următoare este stabilită de densitatea din generația curentă: reacția vine **cu o întîrziere de o generație**. Dacă ``r`` este mare, o populație mică produce prea mulți urmași, depășește capacitatea mediului, iar generația următoare se prăbușește (**supracompensare**).
 
-### 📌 Concluzii parțiale: Modelul Logistic
-* Modelul logistic introduce o **limită** (capacitatea mediului), ceea ce previne creșterea exponențială.
-* Punctele de echilibru se găsesc rezolvând $x = f(x)$. Pentru modelul logistic, acestea sunt $\hat{x} = 0$ și $\hat{x} = \frac{r-1}{r}$.
-* **Tranziția spre haos** se face prin *bifurcații de dublare a perioadei*.
+> 🧮 Același fenomen apare cînd aplicăm metoda Euler ecuației logistice continue cu un pas ``\Delta t`` prea mare: soluția numerică începe să oscileze, deși soluția exactă este monotonă (Exercițiul 3).
+
+În secțiunile următoare explicăm matematic toate aceste comportamente.
 """
 
 # ╔═╡ 01fa65ac-bed0-41de-b98c-1c1ca5ea5622
 md"""
----
-## 3. Stabilitate și Haos Determinist
+## 🕸️ 3. Echilibre, diagrama pînză de păianjen și stabilitate
 
-Cum putem prezice matematic dacă un echilibru $\hat{x}$ este stabil? Folosim **derivata**!
+### 3.1. Puncte de echilibru
+Un **punct de echilibru** (punct fix) este o stare care se reproduce identic de la o generație la alta:
+```math
+x^* = f(x^*) .
+```
+Grafic, echilibrele sînt punctele în care graficul lui ``f`` intersectează **prima bisectoare** ``y = x``.
 
-> **Teorema Stabilității:** 
-> Fie $x_{t+1} = f(x_t)$ cu echilibrul $\hat{x} = f(\hat{x})$.
-> * Dacă $|f'(\hat{x})| < 1 \implies$ **Stabil** (atractor)
-> * Dacă $|f'(\hat{x})| > 1 \implies$ **Instabil** (repulsor)
+Pentru modelul logistic: ``x = rx(1-x) \iff x\big(r(1-x) - 1\big) = 0``, deci
+```math
+x^* = 0 \qquad \text{și} \qquad x^* = 1 - \frac{1}{r} = \frac{r-1}{r} \quad (\text{în } (0,1) \text{ doar dacă } r > 1).
+```
 
-Pentru modelul logistic, $f'(x) = r(1-2x)$. 
-* La $\hat{x}=0$, $f'(0) = r$. Deci $0$ e stabil doar dacă $r < 1$.
-* La $\hat{x}=\frac{r-1}{r}$, $f'(\dots) = 2-r$. Echilibrul devine instabil când $r > 3$ (aici apare prima bifurcație!).
+### 3.2. Diagrama pînză de păianjen
+Iterația se poate urmări direct pe graficul lui ``f``:
+1. pornim din ``x_0`` pe axa ``Ox`` și urcăm **vertical** pînă la graficul lui ``f``: ajungem în punctul ``(x_0, x_1)``;
+2. mergem **orizontal** pînă la bisectoarea ``y = x``: ajungem în ``(x_1, x_1)``, adică am „mutat” ``x_1`` pe axa ``Ox``;
+3. repetăm: vertical pînă la grafic, orizontal pînă la bisectoare, ...
 
-### 🌪️ Ce înseamnă "Haos"?
-Haosul nu este dezordine aleatorie. Un sistem haotic este:
-1. **Determinist** (fără elemente aleatoare).
-2. **Mărginit** (nu explodează la infinit).
-3. **Neregulat** (nu se repetă periodic).
-4. **Sensibil la condițiile inițiale** (efectul de fluture): două traiectorii care pornesc din $x_0$ și $x_0 + \epsilon$ se vor îndepărta exponențial: $dist(t) \approx e^{\lambda t} \cdot \epsilon$. $\lambda$ se numește *exponentul Liapunov*.
+Linia frîntă obținută seamănă cu o pînză de păianjen (în engleză, *cobweb diagram*).
 """
+
+# ╔═╡ 7128b3da-1907-4946-a117-41cbfa3381e5
+md"""
+Parametrul ``r``: $(@bind r_pz PlutoUI.Slider(0.5:0.01:4.0, show_value=true, default=2.8))
+
+Valoarea inițială ``x_0``: $(@bind x0_pz PlutoUI.Slider(0.01:0.01:0.99, show_value=true, default=0.1))
+
+Numărul de pași ``n``: $(@bind n_pz PlutoUI.Slider(1:1:100, show_value=true, default=15))
+"""
+
+# ╔═╡ 37806866-5fb1-4f6e-8d76-0133ee350ebb
+let
+	f(x) = f_logistic(x, r_pz)
+	fig = Figure(size = (1100, 450))
+	subtitlu = r_pz > 1 ?
+		@sprintf("x* = 1 − 1/r = %.3f,   f'(x*) = 2 − r = %.2f", 1 - 1 / r_pz, 2 - r_pz) :
+		@sprintf("x* = 0,   f'(0) = r = %.2f", r_pz)
+	ax1 = Axis(fig[1, 1], title = "Diagrama pînză de păianjen", subtitle = subtitlu,
+		xlabel = "xₙ", ylabel = "xₙ₊₁", aspect = 1)
+	traj = panza!(ax1, f, x0_pz, n_pz, 0, 1)
+	ylims!(ax1, 0, 1)
+	if r_pz > 1
+		scatter!(ax1, [1 - 1 / r_pz], [1 - 1 / r_pz], color = :purple, markersize = 14)
+	end
+
+	ax2 = Axis(fig[1, 2], title = "Evoluția în timp", xlabel = "Generația (n)", ylabel = "xₙ",
+		limits = (0, n_pz, 0, 1))
+	r_pz > 1 && hlines!(ax2, [1 - 1 / r_pz], color = :purple, linestyle = :dash)
+	scatterlines!(ax2, 0:n_pz, traj, color = :darkorange, markersize = 7)
+	fig
+end
+
+# ╔═╡ ef07c739-7314-48ac-bad0-0206cf48f2fe
+md"""
+### 3.3. Criteriul de stabilitate
+Ca în Cursul 3, un echilibru este **stabil** (atractor) dacă traiectoriile care pornesc aproape de el se apropie de el și **instabil** (repulsor) dacă se îndepărtează.
+
+Fie ``u_n = x_n - x^*`` abaterea de la echilibru. Aproximînd ``f`` prin tangenta sa în ``x^*`` (Cursul 2):
+```math
+u_{n+1} = f(x^* + u_n) - x^* \approx \underbrace{f(x^*) - x^*}_{=\,0} + f'(x^*)\,u_n .
+```
+Abaterea satisface deci o ecuație de **creștere geometrică** (secțiunea 1) cu factorul ``\lambda = f'(x^*)``, deci ``u_n \approx \big(f'(x^*)\big)^n u_0``.
+
+> **Teorema de stabilitate.** Fie ``x^*`` un echilibru al sistemului ``x_{n+1} = f(x_n)``.
+> * Dacă ``\lvert f'(x^*)\rvert < 1``, atunci ``x^*`` este **stabil**.
+> * Dacă ``\lvert f'(x^*)\rvert > 1``, atunci ``x^*`` este **instabil**.
+> * Dacă ``\lvert f'(x^*)\rvert = 1``, criteriul **nu decide**.
+
+**Semnul** derivatei arată cum se apropie (sau se depărtează) traiectoria:
+* ``f'(x^*) > 0``: abaterea își păstrează semnul ⟹ evoluție **monotonă** (pînza de păianjen arată ca o scară);
+* ``f'(x^*) < 0``: abaterea își schimbă semnul la fiecare pas ⟹ **oscilații** în jurul echilibrului (pînza de păianjen este o spirală).
+"""
+
+# ╔═╡ c1b2337e-73a6-4842-8e62-7bfc97e8b519
+let
+	fig = Figure(size = (1100, 420))
+	cazuri = [(0.7, "stabil, monoton"), (-0.7, "stabil, cu oscilații"),
+		(1.15, "instabil, monoton"), (-1.15, "instabil, cu oscilații")]
+	for (i, (λ, descriere)) in enumerate(cazuri)
+		ax = Axis(fig[1, i], title = "f'(x*) = $λ", subtitle = descriere,
+			xlabel = "n", ylabel = i == 1 ? "abaterea uₙ" : "", limits = (-0.5, 15.5, -3.5, 3.5))
+		hlines!(ax, 0, color = :purple, linestyle = :dash)
+		culoare = abs(λ) < 1 ? :seagreen : :crimson
+		scatterlines!(ax, 0:15, λ .^ (0:15), color = culoare, markersize = 7)
+	end
+	fig
+end
+
+# ╔═╡ bc222929-5b58-48b3-8b1a-00aa502ed3e5
+md"""
+> ⚠️ **Diferența față de timpul continuu.** Pentru ``x' = f(x)`` condiția de stabilitate era ``f'(x^*) < 0``: oricît de negativă ar fi derivata, echilibrul rămîne stabil. În timp discret o derivată **prea negativă** (``f'(x^*) < -1``) destabilizează echilibrul: corecția este atît de puternică încît sistemul „sare” de cealaltă parte, tot mai departe. Aceasta este supracompensarea din secțiunea 2.
+
+### 3.4. Aplicație: modelul logistic
+Avem ``f(x) = rx(1-x)``, deci ``f'(x) = r(1 - 2x)``.
+* În ``x^* = 0``: ``f'(0) = r``. Extincția este stabilă pentru ``r < 1`` și instabilă pentru ``r > 1``.
+* În ``x^* = 1 - \frac{1}{r}``: ``f'(x^*) = r\left(1 - 2 + \frac{2}{r}\right) = 2 - r``. Deci:
+
+| Interval pentru ``r`` | ``f'(x^*) = 2 - r`` | Comportament lîngă ``x^* = 1 - 1/r`` |
+| :--- | :---: | :--- |
+| ``1 < r < 2`` | ``(0, 1)`` | 🎯 stabil, apropiere monotonă |
+| ``2 < r < 3`` | ``(-1, 0)`` | 🎯 stabil, oscilații amortizate |
+| ``r > 3`` | ``< -1`` | ❌ instabil: ce se întîmplă atunci? |
+
+Verificați tabelul cu diagrama pînză de păianjen de mai sus!
+
+### ✅ Verificare rapidă
+Pentru ``x_{n+1} = 2.5\,x_n(1 - x_n)``, găsiți echilibrul nenul și stabilitatea lui. Apropierea de echilibru este monotonă sau cu oscilații?
+"""
+
+# ╔═╡ 3b9199fc-11d0-4908-beaa-9da23c27ffe8
+hint(md"``x^* = 1 - 1/2.5 = 0.6`` și ``f'(0.6) = 2.5\,(1 - 1.2) = -0.5``. Cum ``\lvert -0.5\rvert < 1``, echilibrul este stabil; derivata fiind negativă, apropierea se face cu oscilații, iar abaterea se înjumătățește (în valoare absolută) la fiecare generație.")
+
+# ╔═╡ a815fcaa-7fc1-4d0b-997e-6e6fe63158dd
+md"""
+## 🔄 4. Ciclul de perioadă 2
+
+Pentru ``r > 3`` ambele echilibre sînt instabile, dar populația rămîne în ``[0, 1]``. Simulările arată că ea ajunge să **alterneze între două valori** ``p`` și ``q``: un an bun, un an slab, un an bun, ... Un astfel de comportament se observă la unele populații de insecte și de rozătoare.
+
+Dacă ``f(p) = q`` și ``f(q) = p``, atunci ``f(f(p)) = p``: punctele ``p`` și ``q`` sînt **echilibre ale funcției compuse** ``f^2 = f \circ f``, adică ale sistemului citit din două în două generații. Ecuația ``f(f(x)) = x`` este de gradul 4. Două rădăcini le cunoaștem deja (``0`` și ``1 - 1/r``, care sînt echilibre și pentru ``f^2``); împărțind la ele rămîne o ecuație de gradul 2, cu soluțiile
+```math
+p,\,q = \frac{(r+1) \pm \sqrt{(r+1)(r-3)}}{2r},
+```
+reale și distincte **exact cînd ``r > 3``**: ciclul de perioadă 2 se naște în momentul în care echilibrul își pierde stabilitatea.
+
+**Stabilitatea ciclului.** Aplicăm criteriul din secțiunea 3 funcției ``f^2``. Cu regula de derivare a funcțiilor compuse (Cursul 2):
+```math
+(f^2)'(p) = f'(f(p))\cdot f'(p) = f'(q)\, f'(p) = -r^2 + 2r + 4 .
+```
+Condiția ``\lvert -r^2 + 2r + 4\rvert < 1`` dă ``3 < r < 1 + \sqrt{6} \approx 3.449``. Pentru ``r > 1 + \sqrt 6`` și ciclul de perioadă 2 devine instabil, iar în locul lui apare un ciclu de **perioadă 4** (echilibre ale lui ``f^4``), apoi unul de perioadă 8, ... Fenomenul se numește **dublarea perioadei**.
+
+Parametrul ``r``: $(@bind r_p2 PlutoUI.Slider(2.5:0.01:4.0, show_value=true, default=3.2))
+"""
+
+# ╔═╡ 4f5b0ffe-0db5-485e-94fc-6949b6416e62
+let
+	f(x) = f_logistic(x, r_p2)
+	xs = range(0, 1, length = 400)
+	xe = 1 - 1 / r_p2
+	fig = Figure(size = (1100, 470))
+
+	subtitlu = r_p2 > 3 ?
+		@sprintf("f'(p)·f'(q) = −r² + 2r + 4 = %.3f  ⟹  ciclu %s", -r_p2^2 + 2r_p2 + 4,
+			abs(-r_p2^2 + 2r_p2 + 4) < 1 ? "stabil" : "instabil") :
+		"r ≤ 3: nu există ciclu de perioadă 2"
+	ax1 = Axis(fig[1, 1], title = "Graficele lui f și f∘f", subtitle = subtitlu,
+		xlabel = "x", ylabel = "y", aspect = 1, limits = (0, 1, 0, 1))
+	lines!(ax1, xs, xs, color = :gray, linestyle = :dash, linewidth = 1.5, label = "y = x")
+	lines!(ax1, xs, f.(xs), color = :teal, linewidth = 2.5, label = "f(x)")
+	lines!(ax1, xs, f.(f.(xs)), color = :purple, linewidth = 2.5, label = "f(f(x))")
+	scatter!(ax1, [xe], [xe], color = :black, markersize = 12, label = "x* = 1 − 1/r")
+	if r_p2 > 3
+		Δ = sqrt((r_p2 + 1) * (r_p2 - 3))
+		pq = [(r_p2 + 1 + Δ) / (2r_p2), (r_p2 + 1 - Δ) / (2r_p2)]
+		scatter!(ax1, pq, pq, color = :crimson, markersize = 14, label = "p, q")
+	end
+	axislegend(ax1, position = :cb)
+
+	ax2 = Axis(fig[1, 2], title = "Pînza de păianjen pentru f (x₀ = 0.2, 100 de pași)",
+		xlabel = "xₙ", ylabel = "xₙ₊₁", aspect = 1)
+	panza!(ax2, f, 0.2, 100, 0, 1)
+	ylims!(ax2, 0, 1)
+	fig
+end
+
+# ╔═╡ 6eb206ba-143d-423a-a1e4-0f1151ea024b
+md"""
+Observați că pînza de păianjen se „înfășoară” în jurul unui **pătrat**, cu colțurile pe grafic și pe bisectoare: acesta este ciclul ``p \to q \to p``. Pentru ``r > 3.449`` pătratul se dedublează.
+
+### ✅ Verificare rapidă
+Pentru ``r = 3.2``, calculați ``p`` și ``q`` și verificați că ``f(p) = q``.
+"""
+
+# ╔═╡ d1bdcb58-19f6-4759-8c16-49eb24fcff8b
+hint(md"``\sqrt{4.2 \cdot 0.2} = \sqrt{0.84} \approx 0.9165``, deci ``p \approx (4.2 + 0.9165)/6.4 \approx 0.7995`` și ``q \approx (4.2 - 0.9165)/6.4 \approx 0.5130``. Verificare: ``3.2 \cdot 0.7995 \cdot 0.2005 \approx 0.5130``. Populația alternează între aproximativ 80% și 51% din capacitatea de suport.")
 
 # ╔═╡ 62ff91b1-fadf-435f-8a4e-0f2a146cf252
 md"""
-### 📊 Diagrama de bifurcație
-Această diagramă este "amprenta digitală" a sistemului. Pe axa X avem parametrul $r$, iar pe axa Y valorile asimptotice ale populației (după ce transientul a dispărut).
+## 🌪️ 5. Diagrama de bifurcație și haosul
 
-Start pentru $r$: $(@bind rstart PlutoUI.Slider(0.0:0.01:3.9, show_value=true, default=0.9))
+### 5.1. Diagrama de bifurcație
+Pentru fiecare valoare a lui ``r`` iterăm modelul 500 de generații (ca să dispară regimul tranzitoriu) și desenăm următoarele 150 de valori ale lui ``x_n``. Pe axa orizontală avem parametrul ``r``, iar pe cea verticală **comportamentul pe termen lung** al populației:
+* un singur punct deasupra lui ``r`` ⟹ echilibru stabil;
+* două puncte ⟹ ciclu de perioadă 2; patru puncte ⟹ perioadă 4, ...
+* o „ceață” de puncte ⟹ haos.
+
+Diagrama este „amprenta” întregului model. Graficul de dedesubt arată **exponentul Liapunov** ``\lambda(r)``, despre care vorbim în secțiunea 5.3. Folosiți slider-ele pentru a mări o porțiune a diagramei.
+
+``r`` minim: $(@bind r_min PlutoUI.Slider(1.0:0.01:3.95, show_value=true, default=2.5))
+
+``r`` maxim: $(@bind r_max PlutoUI.Slider(1.05:0.01:4.0, show_value=true, default=4.0))
 """
 
 # ╔═╡ 05a9b88d-8511-4a57-9665-a56b88b64a8b
-begin
-	# Diagrama de bifurcație optimizată pentru viteză
-	rs = LinRange(rstart, 4.0, 1500)
-	x_init = 0.5
-	maxiter = 400
-	x = zeros(length(rs), maxiter)
-	
-	for k in eachindex(rs)
-		x[k,1] = x_init
-		for j = 1:maxiter-1
-			x[k, j+1] = rs[k] * x[k, j] * (1 - x[k,j])
+let
+	r_sus = max(r_max, r_min + 0.01)
+	rs = range(r_min, r_sus, length = 1200)
+	n_tranz, n_desen, n_liap = 500, 150, 1000
+	r_pct, x_pct = Float64[], Float64[]
+	liapunov = zeros(length(rs))
+	for (i, r) in enumerate(rs)
+		x = 0.3
+		for _ in 1:n_tranz
+			x = f_logistic(x, r)
 		end
+		s = 0.0
+		for k in 1:n_liap
+			s += log(abs(r * (1 - 2x)) + 1e-15)
+			x = f_logistic(x, r)
+			if k <= n_desen
+				push!(r_pct, r); push!(x_pct, x)
+			end
+		end
+		liapunov[i] = s / n_liap
 	end
-	
-	fig_bif = Figure(size=(1500, 700))
-	ax_bif = Axis(fig_bif[1,1], 
-		title="Diagrama de bifurcație a modelului logistic",
-		xlabel="Parametrul r", 
-		ylabel="Starea asimptotică x",
-		limits=(0, 4, 0, 1)
-	)
-	
-	# Plotăm doar ultimele 100 de iterații (atractorul)
-	for j in (maxiter-100):maxiter
-		scatter!(ax_bif, rs, x[:, j], markersize=0.8, color=:navy, alpha=0.15)
-	end
-	
-	fig_bif
+
+	fig = Figure(size = (1400, 800))
+	ax1 = Axis(fig[1, 1], title = "Diagrama de bifurcație a modelului logistic",
+		ylabel = "Comportamentul pe termen lung (xₙ)")
+	# bifurcațiile de dublare a perioadei și începutul haosului
+	r_bif = filter(r -> r_min < r < r_sus, [3.0, 1 + sqrt(6), 3.5441, 3.5699])
+	vlines!(ax1, r_bif, color = (:crimson, 0.5), linestyle = :dash)
+	scatter!(ax1, r_pct, x_pct, markersize = 1.5, color = (:navy, 0.25), rasterize = 2)
+
+	ax2 = Axis(fig[2, 1], title = "Exponentul Liapunov",
+		xlabel = "Parametrul r", ylabel = "λ(r)")
+	hlines!(ax2, 0, color = :black, linewidth = 1)
+	band!(ax2, rs, zeros(length(rs)), max.(liapunov, 0), color = (:crimson, 0.3))
+	lines!(ax2, rs, max.(liapunov, -2.5), color = :navy, linewidth = 1.5)
+	ylims!(ax2, -2.5, 1)
+
+	linkxaxes!(ax1, ax2)
+	xlims!(ax2, r_min, r_sus)
+	hidexdecorations!(ax1, grid = false)
+	rowsize!(fig.layout, 2, Relative(0.3))
+	fig
 end
 
-# ╔═╡ 36c2d7fd-4356-4af2-a394-ae46993a7a3d
+# ╔═╡ 188dfdbb-4e1c-4dec-9741-108142504561
 md"""
-### 📝 Exercițiul 2: Vânătoare de ferestre periodice
-> ❓ **Sarcină:** Deși pentru $r > 3.57$ sistemul este haotic, există mici "ferestre" de stabilitate. 
-> Folosind slider-ul și diagrama de bifurcație de mai sus, încearcă să găsești o valoare a lui $r$ (între 3.57 și 4.0) unde apare o **orbită periodică de perioadă 3** (o "fereastră" clară cu 3 benzi orizontale).
-> 
-> *Notează valoarea găsită: $r \approx$ _______*
+### 🗺️ Harta comportamentelor modelului logistic
+
+| Interval pentru ``r`` | Comportamentul sistemului |
+| :--- | :--- |
+| ``0 < r \le 1`` | 📉 **Extincție**: orice populație tinde la ``0``. |
+| ``1 < r \le 2`` | 🎯 **Echilibru stabil** ``1 - \frac{1}{r}``, atins monoton. |
+| ``2 < r \le 3`` | 🎯 **Echilibru stabil**, atins prin oscilații amortizate. |
+| ``3 < r < 3.449`` | 🔄 **Ciclu de perioadă 2**. |
+| ``3.449 < r < 3.544`` | 🔄 **Ciclu de perioadă 4**. |
+| ``3.544 < r < 3.5699`` | 🔄 **Perioade 8, 16, 32, …** (cascada dublărilor de perioadă). |
+| ``3.5699 < r \le 4`` | 🌪️ **Haos**, întrerupt de „ferestre” periodice. |
+
+Liniile roșii punctate din diagramă marchează valorile ``r_1 = 3``, ``r_2 \approx 3.449``, ``r_3 \approx 3.544`` și limita ``r_\infty \approx 3.5699``. Intervalele dintre dublări se micșorează de fiecare dată de aproximativ ``4.669`` ori:
+```math
+\lim_{k \to \infty} \frac{r_k - r_{k-1}}{r_{k+1} - r_k} = \delta \approx 4.669 .
+```
+Numărul ``\delta`` (**constanta lui Feigenbaum**) este **universal**: apare la fel pentru modelul Ricker și pentru orice funcție cu o singură „cocoașă”. De aceea dublarea perioadei este considerată „drumul tipic spre haos”.
+
+### 📝 Exercițiul de la tablă: vînătoare de ferestre periodice
+> ❓ Deși pentru ``r > 3.57`` sistemul este în general haotic, există mici „ferestre” de ordine. Măriți diagrama de bifurcație (de exemplu, ``r`` între ``3.8`` și ``3.9``) și găsiți valoarea lui ``r`` de la care apare un **ciclu de perioadă 3** (trei benzi orizontale clare).
+>
+> *Valoarea găsită: ``r \approx`` _______*
+>
+> Cum arată exponentul Liapunov în această fereastră?
+"""
+
+# ╔═╡ 36c2d7fd-4356-4af2-a394-ae46993a7a3d
+hint(md"Fereastra de perioadă 3 începe la ``r = 1 + \sqrt{8} \approx 3.828``. În interiorul ei exponentul Liapunov este negativ: ciclul este stabil. Celebra teoremă a lui Li și Yorke (1975), intitulată *Period three implies chaos*, arată că un sistem care are un ciclu de perioadă 3 are cicluri de **orice** perioadă.")
+
+# ╔═╡ 28c40066-0753-4f87-aed7-9e5a164fba7a
+md"""
+### 5.2. Sensibilitatea la condițiile inițiale
+Să urmărim două populații care pornesc din valori aproape identice, ``x_0 = 0.2`` și ``x_0 = 0.2 + \varepsilon``. Diferența ``\varepsilon`` poate fi o eroare de numărare: nimeni nu poate număra exact o populație de insecte.
+
+Parametrul ``r``: $(@bind r_fl PlutoUI.Slider(2.5:0.01:4.0, show_value=true, default=3.9))
+
+Diferența inițială ``\varepsilon = 10^{k}``, cu ``k`` = $(@bind k_eps PlutoUI.Slider(-12:1:-1, show_value=true, default=-6))
+"""
+
+# ╔═╡ a2198010-22d4-4e79-82f9-18f5a8ed9dbe
+let
+	f(x) = f_logistic(x, r_fl)
+	n = 60
+	ε = 10.0^k_eps
+	a = itereaza(f, 0.2, n)
+	b = itereaza(f, 0.2 + ε, n)
+	dist = max.(abs.(a .- b), 1e-17)
+
+	# exponentul Liapunov, estimat pe o traiectorie lungă
+	lung = itereaza(f, 0.2, 10_500)[501:end]
+	λ = sum(x -> log(abs(r_fl * (1 - 2x)) + 1e-15), lung) / length(lung)
+
+	fig = Figure(size = (1100, 650))
+	ax1 = Axis(fig[1, 1], title = @sprintf("Două traiectorii, r = %.2f,  ε = 10^%d", r_fl, k_eps),
+		ylabel = "xₙ", limits = (0, n, 0, 1))
+	scatterlines!(ax1, 0:n, a, color = :teal, markersize = 6, label = "x₀ = 0.2")
+	scatterlines!(ax1, 0:n, b, color = :darkorange, markersize = 6, linestyle = :dash,
+		label = "x₀ = 0.2 + ε")
+	axislegend(ax1, position = :lb, orientation = :horizontal)
+
+	subtitlu = λ > 0 ?
+		@sprintf("λ ≈ %.3f > 0: eroarea crește ca ε·e^(λn); predicția devine inutilă după n ≈ ln(1/ε)/λ ≈ %.0f generații", λ, log(1 / ε) / λ) :
+		@sprintf("λ ≈ %.3f < 0: diferența se stinge, traiectoriile se apropie", λ)
+	ax2 = Axis(fig[2, 1], title = "Distanța dintre traiectorii (scară logaritmică)", subtitle = subtitlu,
+		xlabel = "Generația (n)", ylabel = "|xₙ − yₙ|", yscale = log10, limits = (0, n, 1e-17, 10))
+	lines!(ax2, 0:n, dist, color = :purple, linewidth = 2)
+	if λ > 0
+		lines!(ax2, 0:n, min.(ε .* exp.(λ .* (0:n)), 1), color = :crimson, linestyle = :dash,
+			label = "ε·e^(λn)")
+		axislegend(ax2, position = :rb)
+	end
+	fig
+end
+
+# ╔═╡ 83cd0f6c-d829-47f4-b679-d5ac5076ac81
+md"""
+Pentru ``r = 3.9`` cele două traiectorii coincid la început, dar după cîteva zeci de generații devin complet diferite. Micșorînd ``\varepsilon`` de un milion de ori cîștigăm doar cîteva generații de predicție. Pentru ``r < 3.57`` (alegeți, de exemplu, ``r = 3.2``) diferența se stinge.
+
+### 5.3. Exponentul Liapunov
+De unde vine creșterea exponențială a erorii? După ``n`` pași, cu regula de derivare a funcțiilor compuse,
+```math
+\lvert f^n(x_0 + \varepsilon) - f^n(x_0)\rvert \approx \lvert (f^n)'(x_0)\rvert\, \varepsilon
+= \lvert f'(x_0)\, f'(x_1) \cdots f'(x_{n-1})\rvert\, \varepsilon = e^{\lambda n}\, \varepsilon,
+```
+unde
+```math
+\lambda = \frac{1}{n} \sum_{k=0}^{n-1} \ln \lvert f'(x_k)\rvert
+```
+este media logaritmilor factorilor de amplificare de-a lungul traiectoriei: **exponentul Liapunov**.
+* ``\lambda < 0``: erorile se sting ⟹ traiectoria este atrasă de un echilibru sau de un ciclu stabil;
+* ``\lambda > 0``: erorile cresc exponențial ⟹ **haos**.
+
+Pentru ``r = 4`` se poate arăta că ``\lambda = \ln 2``: eroarea se dublează la fiecare generație, deci o eroare inițială de ``10^{-6} \approx 2^{-20}`` devine de ordinul populației însăși după circa 20 de generații.
+
+### 5.4. Ce înseamnă „haos”?
+Haosul **nu** înseamnă dezordine întîmplătoare. Un sistem haotic este:
+1. **determinist**: nu conține nimic aleator, ``x_{n+1}`` este complet determinat de ``x_n``;
+2. **mărginit**: populația nu explodează și nu dispare;
+3. **neregulat**: traiectoria nu se repetă niciodată periodic;
+4. **sensibil la condițiile inițiale** (*efectul fluture*): ``\lambda > 0``.
+
+> 🌍 **Consecințe ecologice.**
+> * Fluctuațiile mari și neregulate ale unei populații **nu sînt neapărat** cauzate de factori externi întîmplători (vreme, boli); ele pot fi produse de dinamica internă a populației. Acesta a fost mesajul principal al articolului lui May din 1976.
+> * Haosul a fost observat experimental: în anii '90, Costantino și colaboratorii au împins populații de gîndaci de făină (*Tribolium*) în regim haotic, modificînd în laborator rata de mortalitate a adulților.
+> * Pentru o populație haotică, predicțiile pe termen lung sînt imposibile în practică, chiar dacă modelul este cunoscut perfect.
 """
 
 # ╔═╡ 7782ae4f-db38-4ab1-896a-155c7115628a
 md"""
----
-## 4. Modele Alternative: Ricker și Beverton-Holt
+## 🐟 6. Alte modele: Ricker și Beverton–Holt
 
-Nu doar modelul logistic prezintă haos. Să comparăm trei modele populare în ecologie:
+Modelul logistic discret are un defect: dacă ``x_n > 1``, atunci ``x_{n+1} < 0``, ceea ce nu are sens biologic. În gestionarea pescuitului se folosesc două modele care evită această problemă (cu capacitatea de suport normalizată la ``K = 1``):
 
-1. **Verhulst (Logistic):** $x_{n+1} = r x_n (1 - x_n)$
-2. **Ricker:** $x_{n+1} = x_n e^{r(1 - x_n)}$ (include o mortalitate dependentă de densitate)
-3. **Beverton-Holt:** $x_{n+1} = \frac{r x_n}{1 + \frac{r-1}{K}x_n}$ (o variantă mai blândă, fără haos)
+1. **Verhulst (logistic):** ``x_{n+1} = r\, x_n (1 - x_n)``.
+2. **Ricker** (1954, populații de somon): ``x_{n+1} = x_n\, e^{r(1 - x_n)}``. Cînd populația este mare, urmașii sînt decimați (canibalism, boli), dar populația nu devine niciodată negativă.
+3. **Beverton–Holt** (1957): ``x_{n+1} = \dfrac{r\, x_n}{1 + (r-1)\, x_n}``. Numărul de urmași crește cu populația, dar se saturează (**compensare**, fără supracompensare).
 
-Să le vizualizăm graficele funcțiilor și simularea pentru Beverton-Holt.
-"""
+Toate trei au echilibrele ``x^* = 0`` și ``x^* = 1`` (pentru logistic, ``x^* = 1 - 1/r``). Criteriul derivatei (Exercițiile 1 și 2) dă:
 
-# ╔═╡ bc055d25-55f6-4406-a96d-68933a01873c
-md"""
-Parametrul $r$ pentru comparație: $(@bind r0 PlutoUI.Slider(0.1:0.1:4.0, show_value=true, default=2.0))
+| Model | ``f'(x^*)`` în echilibrul nenul | Echilibrul nenul este stabil pentru | Haos? |
+| :--- | :---: | :---: | :---: |
+| Verhulst | ``2 - r`` | ``1 < r < 3`` | da, ``r > 3.57`` |
+| Ricker | ``1 - r`` | ``0 < r < 2`` | da, ``r > 2.69`` |
+| Beverton–Holt | ``1/r`` | orice ``r > 1`` | nu |
+
+Comparați cele trei modele, folosind același ``r`` și aceeași populație inițială:
+
+Parametrul ``r``: $(@bind r_cmp PlutoUI.Slider(0.1:0.1:4.0, show_value=true, default=2.3))
+
+Populația inițială ``x_0``: $(@bind x0_cmp PlutoUI.Slider(0.05:0.05:1.0, show_value=true, default=0.2))
 """
 
 # ╔═╡ 68ba3408-3ef6-452e-a011-2e17b8305fc0
 let
-	# Definim funcțiile
-	f_verhulst(x) = r0 * x * (1 - x)
-	f_ricker(x) = x * exp(r0 * (1 - x))
-	f_beverton(x) = r0 * x / (1 + (r0 - 1) * x)
-	
-	# Simulări pentru toate cele trei modele
-	n_steps = 200
-	
-	# Verhulst
-	sim_v = [x1]
-	for t in 1:n_steps
-		push!(sim_v, f_verhulst(last(sim_v)))
+	n_pasi = 60
+	modele = [
+		("Verhulst (logistic)", x -> f_logistic(x, r_cmp), :red, 1.0),
+		("Ricker", x -> f_ricker(x, r_cmp), :green, max(3.0, 1.1 * exp(r_cmp - 1) / r_cmp)),
+		("Beverton–Holt", x -> f_beverton(x, r_cmp), :blue, r_cmp >= 1 ? 2.0 : 1.0),
+	]
+
+	fig = Figure(size = (1400, 800))
+	for (j, (nume, f, culoare, xmax)) in enumerate(modele)
+		# rîndul 1: pînza de păianjen
+		ax = Axis(fig[1, j], title = nume, xlabel = "xₙ", ylabel = "xₙ₊₁")
+		panza!(ax, f, x0_cmp, 30, 0, xmax, culoare = culoare)
+		ylims!(ax, 0, xmax)
+
+		# rîndul 2: evoluția în timp
+		ax2 = Axis(fig[2, j], title = "Simulare $nume  (r = $(r_cmp))",
+			xlabel = "Generația (n)", ylabel = "Populație")
+		sim = itereaza(f, x0_cmp, n_pasi)
+		hlines!(ax2, [0], color = :gray)
+		scatterlines!(ax2, 0:n_pasi, sim, color = culoare, markersize = 6)
 	end
-	
-	# Ricker
-	sim_r = [x1]
-	for t in 1:n_steps
-		push!(sim_r, f_ricker(last(sim_r)))
-	end
-	
-	# Beverton-Holt
-	sim_b = [x1]
-	for t in 1:n_steps
-		push!(sim_b, f_beverton(last(sim_b)))
-	end
-	
-	# Pregătire date pentru graficele funcțiilor
-	xs_v = LinRange(0.0, 1.0, 300)
-	xs_r = LinRange(0.0, 3.0, 300)
-	xs_b = LinRange(0.0, 2.0, 300)
-	
-	fig_models = Figure(size=(1400, 800))
-	
-	# === Rândul 1: Graficele funcțiilor f(x) ===
-	
-	ax1 = Axis(fig_models[1, 1], 
-		title="Verhulst (Logistic)", 
-		xlabel="xₙ", ylabel="xₙ₊₁")
-	lines!(ax1, xs_v, f_verhulst.(xs_v), color=:red, linewidth=2.5, label="f(x)")
-	lines!(ax1, xs_v, xs_v, color=:gray, linestyle=:dash, linewidth=1.5, label="y = x")
-	axislegend(ax1, position=:lt, framevisible=false)
-	
-	ax2 = Axis(fig_models[1, 2], 
-		title="Ricker", 
-		xlabel="xₙ", ylabel="xₙ₊₁")
-	lines!(ax2, xs_r, f_ricker.(xs_r), color=:green, linewidth=2.5, label="f(x)")
-	lines!(ax2, xs_r, xs_r, color=:gray, linestyle=:dash, linewidth=1.5, label="y = x")
-	axislegend(ax2, position=:lt, framevisible=false)
-	
-	ax3 = Axis(fig_models[1, 3], 
-		title="Beverton-Holt", 
-		xlabel="xₙ", ylabel="xₙ₊₁")
-	lines!(ax3, xs_b, f_beverton.(xs_b), color=:blue, linewidth=2.5, label="f(x)")
-	lines!(ax3, xs_b, xs_b, color=:gray, linestyle=:dash, linewidth=1.5, label="y = x")
-	axislegend(ax3, position=:lt, framevisible=false)
-	
-	# === Rândul 2: Simulări în timp ===
-	
-	ax4 = Axis(fig_models[2, 1], 
-		title="Simulare Verhulst  (r = $(round(r0, digits=1)))", 
-		xlabel="Timp (n)", ylabel="Populație")
-	lines!(ax4, 0:n_steps, sim_v, color=:red, linewidth=1.5)
-	scatter!(ax4, 0:n_steps, sim_v, color=:red, markersize=5, strokewidth=0.5, strokecolor=:white)
-	
-	ax5 = Axis(fig_models[2, 2], 
-		title="Simulare Ricker  (r = $(round(r0, digits=1)))", 
-		xlabel="Timp (n)", ylabel="Populație")
-	lines!(ax5, 0:n_steps, sim_r, color=:green, linewidth=1.5)
-	scatter!(ax5, 0:n_steps, sim_r, color=:green, markersize=5, strokewidth=0.5, strokecolor=:white)
-	
-	ax6 = Axis(fig_models[2, 3], 
-		title="Simulare Beverton-Holt  (r = $(round(r0, digits=1)))", 
-		xlabel="Timp (n)", ylabel="Populație")
-	lines!(ax6, 0:n_steps, sim_b, color=:blue, linewidth=1.5)
-	scatter!(ax6, 0:n_steps, sim_b, color=:blue, markersize=5, strokewidth=0.5, strokecolor=:white)
-	
-	# Ajustăm spațierea
-	rowgap!(fig_models.layout, 30)
-	colgap!(fig_models.layout, 25)
-	
-	fig_models
+	rowgap!(fig.layout, 30)
+	colgap!(fig.layout, 25)
+	fig
 end
+
+# ╔═╡ c817bb66-b11f-4b0b-9dce-b48e00a04bc8
+md"""
+**Ce observăm:**
+* Pentru ``r = 2.3`` modelul logistic oscilează amortizat, modelul Ricker are deja un ciclu de perioadă 2 (de ce? comparați cu tabelul), iar Beverton–Holt urcă liniștit către ``1``.
+* Curba Beverton–Holt este **crescătoare**: mai mulți părinți înseamnă întotdeauna mai mulți urmași, deci nu poate apărea supracompensarea. Curbele Verhulst și Ricker au o „cocoașă”: dincolo de un anumit nivel, mai mulți părinți înseamnă **mai puțini** urmași.
+* Modelul logistic are sens doar pentru ``0 \le x \le 1`` (altfel produce populații negative), pe cînd modelele Ricker și Beverton–Holt rămîn pozitive pentru orice ``x_0 > 0``.
+
+> 💡 Forma funcției de reproducere ``f`` (cu sau fără cocoașă) contează mai mult decît formula exactă: **supracompensarea** este cea care produce oscilații, cicluri și haos.
+"""
 
 # ╔═╡ 6f8fcc5a-f312-4879-9aeb-2c50556dc200
 md"""
-### 📌 Concluzii finale și Sinteză
-* **Sistemele discrete** sunt esențiale pentru speciile cu reproducere sezonieră.
-* **Neliniaritatea** (termenul $x^2$ sau $e^{-x}$) este cea care permite apariția unor comportamente complexe, precum bifurcațiile și haosul.
-* **Stabilitatea** depinde de panta funcției în punctul de echilibru ($|f'| < 1$).
-* **Haosul determinist** ne arată că predictibilitatea pe termen lung este imposibilă în multe sisteme naturale, din cauza sensibilității extreme la condițiile inițiale.
+## 📝 7. Recapitulare și exerciții
+
+### 🧠 Recapitulare
+- ⏱️ Speciile cu **generații care nu se suprapun** se modelează prin ecuații cu diferențe ``x_{n+1} = f(x_n)``.
+- 📈 **Creștere geometrică:** ``x_{n+1} = \lambda x_n \implies x_n = \lambda^n x_0``; legătura cu timpul continuu este ``\lambda = e^r``.
+- ⚖️ **Echilibre:** ``x^* = f(x^*)``, intersecția graficului lui ``f`` cu bisectoarea. **Stabilitate:** ``\lvert f'(x^*)\rvert < 1``; dacă ``f'(x^*) < 0``, apropierea se face cu oscilații.
+- 🕸️ **Diagrama pînză de păianjen:** vertical pînă la grafic, orizontal pînă la bisectoare.
+- 🔄 **Ciclu de perioadă 2:** echilibru al lui ``f \circ f``, stabil dacă ``\lvert f'(p)\, f'(q)\rvert < 1``.
+- 🌪️ **Modelul logistic:** dublări de perioadă la ``r = 3,\ 3.449,\ 3.544, \dots``, haos după ``r_\infty \approx 3.57``; haosul este **determinist**, dar **imprevizibil** (exponent Liapunov ``\lambda > 0``).
+- 🐟 **Ricker** are haos, **Beverton–Holt** nu: oscilațiile vin din **supracompensare**.
 
 ---
-## 🏆 Exerciții pentru acasă
+### ✍️ Exerciții
+**Exercițiul 1 (modelul Ricker).** Fie ``x_{n+1} = x_n e^{r(1 - x_n)}``, cu ``r > 0``.
 
-### Exercițiul 3: Modelul Ricker
-Modelul Ricker este dat de $x_{n+1} = x_n e^{r(1 - x_n)}$.
-1. Găsește cele două puncte de echilibru ale acestui model (rezolvă $x = f(x)$).
-2. Calculează derivata $f'(x)$ și determină pentru ce valori ale lui $r$ echilibrul nenul este stabil.
-3. *Opțional (Coding):* Completează codul Julia de mai jos pentru a simula modelul Ricker.
+a) Găsiți punctele de echilibru (rezolvați ``x = f(x)``).
 
-```julia
-function simuleaza_ricker(r, x0, pasi)
-    xs = [x0]
-    # COMPLETEAZĂ AICI:
-    # for t in 1:pasi
-    #     push!(xs, ...)
-    # end
-    return xs
-end
-```
+b) Calculați ``f'(x)`` și arătați că echilibrul nenul este stabil pentru ``0 < r < 2``. Cînd se face apropierea monoton și cînd cu oscilații?
+
+c) Folosiți funcțiile `itereaza` și `panza!` pentru a desena pînza de păianjen pentru ``r = 1.5`` și ``r = 2.3``.
 """
+
+# ╔═╡ 16d50a4b-9b4d-4454-8d75-2e6db9c61e45
+hint(md"a) ``x = x e^{r(1-x)}`` dă ``x^* = 0`` sau ``e^{r(1-x)} = 1``, adică ``x^* = 1``. b) ``f'(x) = e^{r(1-x)}(1 - rx)``, deci ``f'(0) = e^r > 1`` și ``f'(1) = 1 - r``. Condiția ``\lvert 1 - r\rvert < 1`` înseamnă ``0 < r < 2``; monoton pentru ``r < 1``, cu oscilații pentru ``1 < r < 2``.")
+
+# ╔═╡ ae98bc88-1aa3-4fb7-9755-20a146a8723f
+# EXERCIȚIUL 1 c): completați și rulați
+# fig_ex1 = Figure(size = (900, 450))
+# ax_ex1 = Axis(fig_ex1[1, 1], xlabel = "xₙ", ylabel = "xₙ₊₁", title = "Ricker, r = 1.5")
+# panza!(ax_ex1, x -> f_ricker(x, 1.5), 0.2, 30, 0, 3)
+# ...
+# fig_ex1
+
+# ╔═╡ 5317987e-98c6-4a3c-877a-8e9cc60f2e51
+md"""
+**Exercițiul 2 (modelul Beverton–Holt).** Fie ``x_{n+1} = \dfrac{r x_n}{1 + (r-1) x_n}``, cu ``r > 1``.
+
+a) Arătați că ``f'(1) = 1/r`` și deduceți că echilibrul ``x^* = 1`` este întotdeauna stabil, iar apropierea de el este monotonă.
+
+b) Cu substituția ``y_n = 1/x_n``, arătați că ``y_{n+1} = \frac{1}{r}\, y_n + \frac{r-1}{r}`` și rezolvați această recurență liniară.
+
+c) Deduceți formula ``x_n = \dfrac{1}{1 + \left(\dfrac{1}{x_0} - 1\right) r^{-n}}`` și comparați-o cu soluția ecuației logistice continue din Cursul 3. Ce rol joacă ``r^{-n}``?
+"""
+
+# ╔═╡ 2804940d-cf50-40e0-964c-6b2a6ad14690
+hint(md"a) ``f'(x) = r / (1 + (r-1)x)^2``, deci ``f'(1) = r/r^2 = 1/r \in (0, 1)``. b) Abaterea ``y_n - 1`` se înmulțește cu ``1/r`` la fiecare pas, deci ``y_n = 1 + (y_0 - 1)\, r^{-n}``. c) Soluția continuă era ``K / (1 + (K/x_0 - 1)e^{-rt})``; cu ``K = 1``, formula discretă este aceeași, cu ``e^{-rt}`` înlocuit de ``r^{-n}``.")
+
+# ╔═╡ 7425776c-1b87-4446-94e8-4f55c1c7c912
+md"""
+**Exercițiul 3 (metoda Euler poate produce haos).** Aplicăm metoda Euler cu pasul ``\Delta t`` ecuației logistice continue ``x' = \rho\, x(1 - x/K)``.
+
+a) Arătați că, notînd ``R = 1 + \rho \Delta t`` și ``y_n = \dfrac{\rho\Delta t}{K R}\, x_n``, schema Euler devine exact modelul logistic discret ``y_{n+1} = R\, y_n(1 - y_n)``.
+
+b) Pentru ``\rho = 0.5``, ce pas ``\Delta t`` face ca soluția numerică să oscileze? Dar să devină haotică? Ce concluzie trageți despre alegerea pasului în simulări?
+"""
+
+# ╔═╡ 9fad8262-63bd-4681-9336-f098bbb5d30f
+hint(md"b) Oscilații apar pentru ``R > 2``, adică ``\Delta t > 2``; ciclul de perioadă 2 pentru ``R > 3``, adică ``\Delta t > 4``; haos pentru ``R > 3.57``, adică ``\Delta t > 5.14``. Soluția exactă a ecuației continue este însă întotdeauna monotonă: oscilațiile și haosul sînt artefacte numerice ale unui pas prea mare.")
 
 # ╔═╡ 1da460a7-91a8-4fb7-b704-99ea528e991f
 md"""
-🌲 Scenariu: Ești responsabil cu managementul unei populații de pești dintr-un lac. Datele arată că populația urmează un model discret cu r=3.8.
+**Exercițiul 4 (discuție).** 🎣 Sînteți responsabili cu gestionarea populației de pești dintr-un lac. Datele arată că populația urmează un model logistic discret cu ``r = 3.8``.
 
-Bazându-te pe cele învățate în acest curs (diagrama de bifurcație), ce sfat i-ai da directorului privind recoltarea peștilor și predictibilitatea populației pe termen lung? De ce este periculos să presupui că populația va fi constantă de la un an la altul?
+a) Pe baza diagramei de bifurcație și a exponentului Liapunov, ce i-ați spune directorului despre predictibilitatea populației pe termen lung? De ce este periculos să presupuneți că populația va fi aceeași de la un an la altul?
+
+b) Pescuitul reduce rata efectivă de reproducere ``r``. Ce s-ar putea întîmpla cu dinamica populației dacă se pescuiește moderat? Dar dacă se pescuiește excesiv?
 """
 
-# ╔═╡ 00000000-0000-0000-0000-000000000001
-PLUTO_PROJECT_TOML_CONTENTS = """
-[deps]
-CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
-Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
-PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
-PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-
-[compat]
-CairoMakie = "~0.15.14"
-Makie = "~0.24.14"
-PlutoTeachingTools = "~0.4.7"
-PlutoUI = "~0.7.83"
-"""
-
-# ╔═╡ 00000000-0000-0000-0000-000000000002
-PLUTO_MANIFEST_TOML_CONTENTS = """
-# This file is machine-generated - editing it directly is not advised
-
-julia_version = "1.12.7"
-manifest_format = "2.0"
-project_hash = "aa0e269646c90a540e05d746b3121bc7e6ed65c3"
-
-[[deps.AbstractFFTs]]
-deps = ["LinearAlgebra"]
-git-tree-sha1 = "d92ad398961a3ed262d8bf04a1a2b8340f915fef"
-uuid = "621f4979-c628-5d54-868e-fcf4e3e8185c"
-version = "1.5.0"
-weakdeps = ["ChainRulesCore", "Test"]
-
-    [deps.AbstractFFTs.extensions]
-    AbstractFFTsChainRulesCoreExt = "ChainRulesCore"
-    AbstractFFTsTestExt = "Test"
-
-[[deps.AbstractPlutoDingetjes]]
-git-tree-sha1 = "e71ee7b4aa06b045259a7d6101e1cb45ad140bce"
-uuid = "6e696c72-6542-2067-7265-42206c756150"
-version = "1.4.1"
-
-[[deps.AbstractTrees]]
-git-tree-sha1 = "2d9c9a55f9c93e8887ad391fbae72f8ef55e1177"
-uuid = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
-version = "0.4.5"
-
-[[deps.Accessors]]
-deps = ["CompositionsBase", "ConstructionBase", "Dates", "InverseFunctions", "MacroTools"]
-git-tree-sha1 = "7063ad1083578215c7c4bf410368150abe8d5524"
-uuid = "7d9f7c33-5ae7-4f3b-8dc6-eff91059b697"
-version = "0.1.45"
-
-    [deps.Accessors.extensions]
-    AxisKeysExt = "AxisKeys"
-    IntervalSetsExt = "IntervalSets"
-    LinearAlgebraExt = "LinearAlgebra"
-    StaticArraysExt = "StaticArrays"
-    StructArraysExt = "StructArrays"
-    TestExt = "Test"
-    UnitfulExt = "Unitful"
-
-    [deps.Accessors.weakdeps]
-    AxisKeys = "94b1ba4f-4ee9-5380-92f1-94cde586c3c5"
-    IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
-    LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-    StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
-    StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
-    Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-    Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
-
-[[deps.Adapt]]
-deps = ["LinearAlgebra"]
-git-tree-sha1 = "daa72978cd7a624246e894a4f4f067706d4e17e2"
-uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
-version = "4.7.0"
-weakdeps = ["SparseArrays", "StaticArrays"]
-
-    [deps.Adapt.extensions]
-    AdaptSparseArraysExt = "SparseArrays"
-    AdaptStaticArraysExt = "StaticArrays"
-
-[[deps.AdaptivePredicates]]
-git-tree-sha1 = "7e651ea8d262d2d74ce75fdf47c4d63c07dba7a6"
-uuid = "35492f91-a3bd-45ad-95db-fcad7dcfedb7"
-version = "1.2.0"
-
-[[deps.AliasTables]]
-deps = ["PtrArrays", "Random"]
-git-tree-sha1 = "9876e1e164b144ca45e9e3198d0b689cadfed9ff"
-uuid = "66dad0bd-aa9a-41b7-9441-69ab47430ed8"
-version = "1.1.3"
-
-[[deps.Animations]]
-deps = ["Colors"]
-git-tree-sha1 = "e092fa223bf66a3c41f9c022bd074d916dc303e7"
-uuid = "27a7e980-b3e6-11e9-2bcd-0b925532e340"
-version = "0.4.2"
-
-[[deps.ArgTools]]
-uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
-version = "1.1.2"
-
-[[deps.Artifacts]]
-uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
-version = "1.11.0"
-
-[[deps.Automa]]
-deps = ["PrecompileTools", "TranscodingStreams"]
-git-tree-sha1 = "94eab0b3ccdcac361188cc661daf69d4433c1818"
-uuid = "67c07d97-cdcb-5c2c-af73-a7f9c32a568b"
-version = "1.2.0"
-
-[[deps.AxisAlgorithms]]
-deps = ["LinearAlgebra", "Random", "SparseArrays", "WoodburyMatrices"]
-git-tree-sha1 = "01b8ccb13d68535d73d2b0c23e39bd23155fb712"
-uuid = "13072b0f-2c55-5437-9ae7-d433b7a33950"
-version = "1.1.0"
-
-[[deps.AxisArrays]]
-deps = ["Dates", "IntervalSets", "IterTools", "RangeArrays"]
-git-tree-sha1 = "4126b08903b777c88edf1754288144a0492c05ad"
-uuid = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
-version = "0.4.8"
-
-[[deps.Base64]]
-uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
-version = "1.11.0"
-
-[[deps.BaseDirs]]
-git-tree-sha1 = "8c290a1b223deaeea9aea44b235d24546da8eb98"
-uuid = "18cc8868-cbac-4acf-b575-c8ff214dc66f"
-version = "1.4.0"
-
-[[deps.Bzip2_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "1b96ea4a01afe0ea4090c5c8039690672dd13f2e"
-uuid = "6e34b625-4abd-537c-b88f-471c36dfa7a0"
-version = "1.0.9+0"
-
-[[deps.CEnum]]
-git-tree-sha1 = "389ad5c84de1ae7cf0e28e381131c98ea87d54fc"
-uuid = "fa961155-64e5-5f13-b03f-caf6b980ea82"
-version = "0.5.0"
-
-[[deps.CRC32c]]
-uuid = "8bf52ea8-c179-5cab-976a-9e18b702a9bc"
-version = "1.11.0"
-
-[[deps.CRlibm]]
-deps = ["CRlibm_jll"]
-git-tree-sha1 = "66188d9d103b92b6cd705214242e27f5737a1e5e"
-uuid = "96374032-68de-5a5b-8d9e-752f78720389"
-version = "1.0.2"
-
-[[deps.CRlibm_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "e329286945d0cfc04456972ea732551869af1cfc"
-uuid = "4e9b3aee-d8a1-5a3d-ad8b-7d824db253f0"
-version = "1.0.1+0"
-
-[[deps.Cairo]]
-deps = ["Cairo_jll", "Colors", "Glib_jll", "Graphics", "Libdl", "Pango_jll"]
-git-tree-sha1 = "71aa551c5c33f1a4415867fe06b7844faadb0ae9"
-uuid = "159f3aea-2a34-519c-b102-8c37f9878175"
-version = "1.1.1"
-
-[[deps.CairoMakie]]
-deps = ["CRC32c", "Cairo", "Cairo_jll", "Colors", "FileIO", "FreeType", "GeometryBasics", "LinearAlgebra", "Makie", "PrecompileTools"]
-git-tree-sha1 = "3495bfc164949714579501b825b8e5e2cce7c56f"
-uuid = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
-version = "0.15.14"
-
-[[deps.Cairo_jll]]
-deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "Libdl", "Pixman_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
-git-tree-sha1 = "1fa950ebc3e37eccd51c6a8fe1f92f7d86263522"
-uuid = "83423d85-b0ee-5818-9007-b63ccbeb887a"
-version = "1.18.7+0"
-
-[[deps.ChainRulesCore]]
-deps = ["Compat", "LinearAlgebra"]
-git-tree-sha1 = "12177ad6b3cad7fd50c8b3825ce24a99ad61c18f"
-uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-version = "1.26.1"
-weakdeps = ["SparseArrays"]
-
-    [deps.ChainRulesCore.extensions]
-    ChainRulesCoreSparseArraysExt = "SparseArrays"
-
-[[deps.CodecZstd]]
-deps = ["TranscodingStreams", "Zstd_jll"]
-git-tree-sha1 = "da54a6cd93c54950c15adf1d336cfd7d71f51a56"
-uuid = "6b39b394-51ab-5f42-8807-6242bab2b4c2"
-version = "0.8.7"
-
-[[deps.ColorBrewer]]
-deps = ["Colors", "JSON"]
-git-tree-sha1 = "07da79661b919001e6863b81fc572497daa58349"
-uuid = "a2cac450-b92f-5266-8821-25eda20663c8"
-version = "0.4.2"
-
-[[deps.ColorSchemes]]
-deps = ["ColorTypes", "ColorVectorSpace", "Colors", "FixedPointNumbers", "PrecompileTools", "Random"]
-git-tree-sha1 = "b0fd3f56fa442f81e0a47815c92245acfaaa4e34"
-uuid = "35d6a980-a343-548e-a6ea-1d62b119f2f4"
-version = "3.31.0"
-
-[[deps.ColorTypes]]
-deps = ["FixedPointNumbers", "Random"]
-git-tree-sha1 = "67e11ee83a43eb71ddc950302c53bf33f0690dfe"
-uuid = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
-version = "0.12.1"
-weakdeps = ["StyledStrings"]
-
-    [deps.ColorTypes.extensions]
-    StyledStringsExt = "StyledStrings"
-
-[[deps.ColorVectorSpace]]
-deps = ["ColorTypes", "FixedPointNumbers", "LinearAlgebra", "Requires", "Statistics", "TensorCore"]
-git-tree-sha1 = "8b3b6f87ce8f65a2b4f857528fd8d70086cd72b1"
-uuid = "c3611d14-8923-5661-9e6a-0046d554d3a4"
-version = "0.11.0"
-weakdeps = ["SpecialFunctions"]
-
-    [deps.ColorVectorSpace.extensions]
-    SpecialFunctionsExt = "SpecialFunctions"
-
-[[deps.Colors]]
-deps = ["ColorTypes", "FixedPointNumbers", "Reexport"]
-git-tree-sha1 = "37ea44092930b1811e666c3bc38065d7d87fcc74"
-uuid = "5ae59095-9a9b-59fe-a467-6f913c188581"
-version = "0.13.1"
-
-[[deps.CommonSolve]]
-deps = ["PrecompileTools"]
-git-tree-sha1 = "6c389fa857f6ca5a95474b52a52023fd77f24cb7"
-uuid = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
-version = "0.2.14"
-
-[[deps.Compat]]
-deps = ["TOML", "UUIDs"]
-git-tree-sha1 = "9d8a54ce4b17aa5bdce0ea5c34bc5e7c340d16ad"
-uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "4.18.1"
-weakdeps = ["Dates", "LinearAlgebra"]
-
-    [deps.Compat.extensions]
-    CompatLinearAlgebraExt = "LinearAlgebra"
-
-[[deps.CompilerSupportLibraries_jll]]
-deps = ["Artifacts", "Libdl"]
-uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.3.1+2"
-
-[[deps.CompositionsBase]]
-git-tree-sha1 = "802bb88cd69dfd1509f6670416bd4434015693ad"
-uuid = "a33af91c-f02d-484b-be07-31d278c5ca2b"
-version = "0.1.2"
-weakdeps = ["InverseFunctions"]
-
-    [deps.CompositionsBase.extensions]
-    CompositionsBaseInverseFunctionsExt = "InverseFunctions"
-
-[[deps.ComputePipeline]]
-deps = ["Observables", "Preferences"]
-git-tree-sha1 = "7bc84b769c1d384315e7b5c4ac03a6c303e6cf35"
-uuid = "95dc2771-c249-4cd0-9c9f-1f3b4330693c"
-version = "0.1.8"
-
-[[deps.ConstructionBase]]
-git-tree-sha1 = "b4b092499347b18a015186eae3042f72267106cb"
-uuid = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
-version = "1.6.0"
-weakdeps = ["IntervalSets", "LinearAlgebra", "StaticArrays"]
-
-    [deps.ConstructionBase.extensions]
-    ConstructionBaseIntervalSetsExt = "IntervalSets"
-    ConstructionBaseLinearAlgebraExt = "LinearAlgebra"
-    ConstructionBaseStaticArraysExt = "StaticArrays"
-
-[[deps.Contour]]
-git-tree-sha1 = "439e35b0b36e2e5881738abc8857bd92ad6ff9a8"
-uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
-version = "0.6.3"
-
-[[deps.CoreMath]]
-deps = ["CoreMath_jll"]
-git-tree-sha1 = "8c0480f92b1b1796239156a1b9b1bfb1b39499b4"
-uuid = "b7a15901-be09-4a0e-87d2-2e66b0e09b5a"
-version = "0.1.0"
-
-[[deps.CoreMath_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "a692a4c1dc59a4b8bc0b6403876eb3250fde2bc3"
-uuid = "a38c48d9-6df1-5ac9-9223-b6ada3b5572b"
-version = "0.1.0+0"
-
-[[deps.DataAPI]]
-git-tree-sha1 = "abe83f3a2f1b857aac70ef8b269080af17764bbe"
-uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
-version = "1.16.0"
-
-[[deps.DataStructures]]
-deps = ["OrderedCollections"]
-git-tree-sha1 = "b0bc6d2cad1fed8b7fd59a1551a991cb3d2809e6"
-uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.19.6"
-
-[[deps.DataValueInterfaces]]
-git-tree-sha1 = "bfc1187b79289637fa0ef6d4436ebdfe6905cbd6"
-uuid = "e2d170a0-9d28-54be-80f0-106bbe20a464"
-version = "1.0.0"
-
-[[deps.Dates]]
-deps = ["Printf"]
-uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
-version = "1.11.0"
-
-[[deps.DelaunayTriangulation]]
-deps = ["AdaptivePredicates", "EnumX", "ExactPredicates", "Random"]
-git-tree-sha1 = "c55f5a9fd67bdbc8e089b5a3111fe4292986a8e8"
-uuid = "927a84f5-c5f4-47a5-9785-b46e178433df"
-version = "1.6.6"
-
-[[deps.Distributed]]
-deps = ["Random", "Serialization", "Sockets"]
-uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
-version = "1.11.0"
-
-[[deps.Distributions]]
-deps = ["AliasTables", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "Roots", "SpecialFunctions", "Statistics", "StatsAPI", "StatsBase", "StatsFuns"]
-git-tree-sha1 = "cd3c5ac74cd3923c8945c6a81518c46abd0e73a3"
-uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.25.129"
-
-    [deps.Distributions.extensions]
-    DistributionsChainRulesCoreExt = "ChainRulesCore"
-    DistributionsDensityInterfaceExt = "DensityInterface"
-    DistributionsSparseConnectivityTracerExt = "SparseConnectivityTracer"
-    DistributionsTestExt = "Test"
-
-    [deps.Distributions.weakdeps]
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-    DensityInterface = "b429d917-457f-4dbc-8f4c-0cc954292b1d"
-    SparseConnectivityTracer = "9f842d2f-2579-4b1d-911e-f412cf18a3f5"
-    Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[[deps.DocStringExtensions]]
-git-tree-sha1 = "7442a5dfe1ebb773c29cc2962a8980f47221d76c"
-uuid = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
-version = "0.9.5"
-
-[[deps.Downloads]]
-deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
-uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
-version = "1.7.0"
-
-[[deps.EarCut_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "e3290f2d49e661fbd94046d7e3726ffcb2d41053"
-uuid = "5ae413db-bbd1-5e63-b57d-d24a61df00f5"
-version = "2.2.4+0"
-
-[[deps.EnumX]]
-git-tree-sha1 = "c49898e8438c828577f04b92fc9368c388ac783c"
-uuid = "4e289a0a-7415-4d19-859d-a7e5c4648b56"
-version = "1.0.7"
-
-[[deps.ExactPredicates]]
-deps = ["IntervalArithmetic", "Random", "StaticArrays"]
-git-tree-sha1 = "83231673ea4d3d6008ac74dc5079e77ab2209d8f"
-uuid = "429591f6-91af-11e9-00e2-59fbe8cec110"
-version = "2.2.9"
-
-[[deps.Expat_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "2bfb1e047e2ad0a5ca94365340bde8005d637568"
-uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
-version = "2.8.4+0"
-
-[[deps.FFMPEG_jll]]
-deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers", "LAME_jll", "Libdl", "Ogg_jll", "OpenSSL_jll", "Opus_jll", "PCRE2_jll", "Zlib_jll", "libaom_jll", "libass_jll", "libfdk_aac_jll", "libva_jll", "libvorbis_jll", "x264_jll", "x265_jll"]
-git-tree-sha1 = "7a58e45171b63ed4782f2d36fdee8713a469e6e0"
-uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
-version = "8.1.2+0"
-
-[[deps.FFTA]]
-deps = ["AbstractFFTs", "DocStringExtensions", "LinearAlgebra", "MuladdMacro", "Primes", "Random", "Reexport"]
-git-tree-sha1 = "65e55303b72f4a567a51b174dd2c47496efeb95a"
-uuid = "b86e33f2-c0db-4aa1-a6e0-ab43e668529e"
-version = "0.3.1"
-
-[[deps.FileIO]]
-deps = ["Pkg", "Requires", "UUIDs"]
-git-tree-sha1 = "6621fef488e496356c9c9625d0562c12a6070819"
-uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
-version = "1.20.0"
-
-    [deps.FileIO.extensions]
-    HTTPExt = "HTTP"
-
-    [deps.FileIO.weakdeps]
-    HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-
-[[deps.FilePaths]]
-deps = ["FilePathsBase", "MacroTools", "Reexport"]
-git-tree-sha1 = "a1b2fbfe98503f15b665ed45b3d149e5d8895e4c"
-uuid = "8fc22ac5-c921-52a6-82fd-178b2807b824"
-version = "0.9.0"
-
-    [deps.FilePaths.extensions]
-    FilePathsGlobExt = "Glob"
-    FilePathsURIParserExt = "URIParser"
-    FilePathsURIsExt = "URIs"
-
-    [deps.FilePaths.weakdeps]
-    Glob = "c27321d9-0574-5035-807b-f59d2c89b15c"
-    URIParser = "30578b45-9adc-5946-b283-645ec420af67"
-    URIs = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
-
-[[deps.FilePathsBase]]
-deps = ["Compat", "Dates"]
-git-tree-sha1 = "3bab2c5aa25e7840a4b065805c0cdfc01f3068d2"
-uuid = "48062228-2e41-5def-b9a4-89aafe57970f"
-version = "0.9.24"
-weakdeps = ["Mmap", "Test"]
-
-    [deps.FilePathsBase.extensions]
-    FilePathsBaseMmapExt = "Mmap"
-    FilePathsBaseTestExt = "Test"
-
-[[deps.FileWatching]]
-uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
-version = "1.11.0"
-
-[[deps.FillArrays]]
-deps = ["LinearAlgebra"]
-git-tree-sha1 = "5bad39456d9f0166184fce2248783dd9862645c1"
-uuid = "1a297f60-69ca-5386-bcde-b61e274b549b"
-version = "1.17.0"
-weakdeps = ["PDMats", "SparseArrays", "StaticArrays", "Statistics"]
-
-    [deps.FillArrays.extensions]
-    FillArraysPDMatsExt = "PDMats"
-    FillArraysSparseArraysExt = "SparseArrays"
-    FillArraysStaticArraysExt = "StaticArrays"
-    FillArraysStatisticsExt = "Statistics"
-
-[[deps.FixedPointNumbers]]
-deps = ["Random", "Statistics"]
-git-tree-sha1 = "59af96b98217c6ef4ae0dfe065ac7c20831d1a84"
-uuid = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
-version = "0.8.6"
-
-[[deps.Fontconfig_jll]]
-deps = ["Artifacts", "Bzip2_jll", "Expat_jll", "FreeType2_jll", "JLLWrappers", "Libdl", "Libuuid_jll", "Zlib_jll"]
-git-tree-sha1 = "f85dac9a96a01087df6e3a749840015a0ca3817d"
-uuid = "a3f928ae-7b40-5064-980b-68af3947d34b"
-version = "2.17.1+0"
-
-[[deps.Format]]
-git-tree-sha1 = "9c68794ef81b08086aeb32eeaf33531668d5f5fc"
-uuid = "1fa38f19-a742-5d3f-a2b9-30dd87b9d5f8"
-version = "1.3.7"
-
-[[deps.FreeType]]
-deps = ["CEnum", "FreeType2_jll"]
-git-tree-sha1 = "907369da0f8e80728ab49c1c7e09327bf0d6d999"
-uuid = "b38be410-82b0-50bf-ab77-7b57e271db43"
-version = "4.1.1"
-
-[[deps.FreeType2_jll]]
-deps = ["Artifacts", "Bzip2_jll", "JLLWrappers", "Libdl", "Zlib_jll"]
-git-tree-sha1 = "70329abc09b886fd2c5d94ad2d9527639c421e3e"
-uuid = "d7e528f0-a631-5988-bf34-fe36492bcfd7"
-version = "2.14.3+1"
-
-[[deps.FreeTypeAbstraction]]
-deps = ["BaseDirs", "ColorVectorSpace", "Colors", "FreeType", "GeometryBasics", "Mmap"]
-git-tree-sha1 = "4ebb930ef4a43817991ba35db6317a05e59abd11"
-uuid = "663a7486-cb36-511b-a19d-713bb74d65c9"
-version = "0.10.8"
-
-[[deps.FriBidi_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "7a214fdac5ed5f59a22c2d9a885a16da1c74bbc7"
-uuid = "559328eb-81f9-559d-9380-de523a88c83c"
-version = "1.0.17+0"
-
-[[deps.Gamma]]
-git-tree-sha1 = "86f86b6168a016ed88e4ae4e64577b98c3b59e8e"
-uuid = "a0844989-3bd2-4988-8bea-c9407ab0941b"
-version = "1.1.0"
-
-[[deps.GeometryBasics]]
-deps = ["EarCut_jll", "LinearAlgebra", "PrecompileTools", "Random", "StaticArrays"]
-git-tree-sha1 = "592cfb5ed8b02804f6a9c04091571c393081f73a"
-uuid = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
-version = "0.5.12"
-
-    [deps.GeometryBasics.extensions]
-    ExtentsExt = "Extents"
-    GeometryBasicsGeoInterfaceExt = "GeoInterface"
-    IntervalSetsExt = "IntervalSets"
-
-    [deps.GeometryBasics.weakdeps]
-    Extents = "411431e0-e8b7-467b-b5e0-f676ba4f2910"
-    GeoInterface = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
-    IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
-
-[[deps.GettextRuntime_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Libiconv_jll"]
-git-tree-sha1 = "45288942190db7c5f760f59c04495064eedf9340"
-uuid = "b0724c58-0f36-5564-988d-3bb0596ebc4a"
-version = "0.22.4+0"
-
-[[deps.Ghostscript_jll]]
-deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Zlib_jll"]
-git-tree-sha1 = "38044a04637976140074d0b0621c1edf0eb531fd"
-uuid = "61579ee1-b43e-5ca0-a5da-69d92c66a64b"
-version = "9.55.1+0"
-
-[[deps.Giflib_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "6570366d757b50fabae9f4315ad74d2e40c0560a"
-uuid = "59f7168a-df46-5410-90c8-f2779963d0ec"
-version = "5.2.3+0"
-
-[[deps.Glib_jll]]
-deps = ["Artifacts", "GettextRuntime_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libiconv_jll", "Libmount_jll", "PCRE2_jll", "Zlib_jll"]
-git-tree-sha1 = "090526e65de8f69648ac156daae153de8b56df62"
-uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
-version = "2.88.3+0"
-
-[[deps.Graphics]]
-deps = ["Colors", "LinearAlgebra", "NaNMath"]
-git-tree-sha1 = "a641238db938fff9b2f60d08ed9030387daf428c"
-uuid = "a2bd30eb-e257-5431-a919-1863eab51364"
-version = "1.1.3"
-
-[[deps.Graphite2_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "69ffb934a5c5b7e086a0b4fee3427db2556fba6e"
-uuid = "3b182d85-2403-5c21-9c21-1e1f0cc25472"
-version = "1.3.16+0"
-
-[[deps.GridLayoutBase]]
-deps = ["GeometryBasics", "InteractiveUtils", "Observables"]
-git-tree-sha1 = "ef70da5e123a06a29e2d6ddff0f09985bc226491"
-uuid = "3955a311-db13-416c-9275-1d80ed98e5e9"
-version = "0.11.3"
-
-[[deps.HarfBuzz_jll]]
-deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "Graphite2_jll", "JLLWrappers", "Libdl", "Libffi_jll"]
-git-tree-sha1 = "9d9531a9cb63a9edc33836414e82a07e81710de2"
-uuid = "2e76f6c2-a576-52d4-95c1-20adfe4de566"
-version = "100.14004.0+0"
-
-[[deps.HypergeometricFunctions]]
-deps = ["Gamma", "LinearAlgebra"]
-git-tree-sha1 = "31bb6c92405c084617facc1d7ed9eb6c402d061e"
-uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
-version = "0.3.30"
-
-[[deps.Hyperscript]]
-deps = ["Test"]
-git-tree-sha1 = "179267cfa5e712760cd43dcae385d7ea90cc25a4"
-uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
-version = "0.0.5"
-
-[[deps.HypertextLiteral]]
-deps = ["Tricks"]
-git-tree-sha1 = "d1a86724f81bcd184a38fd284ce183ec067d71a0"
-uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
-version = "1.0.0"
-
-[[deps.IOCapture]]
-deps = ["Logging", "Random"]
-git-tree-sha1 = "0ee181ec08df7d7c911901ea38baf16f755114dc"
-uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
-version = "1.0.0"
-
-[[deps.ImageAxes]]
-deps = ["AxisArrays", "ImageBase", "ImageCore", "Reexport", "SimpleTraits"]
-git-tree-sha1 = "e12629406c6c4442539436581041d372d69c55ba"
-uuid = "2803e5a7-5153-5ecf-9a86-9b4c37f5f5ac"
-version = "0.6.12"
-
-[[deps.ImageBase]]
-deps = ["ImageCore", "Reexport"]
-git-tree-sha1 = "eb49b82c172811fd2c86759fa0553a2221feb909"
-uuid = "c817782e-172a-44cc-b673-b171935fbb9e"
-version = "0.1.7"
-
-[[deps.ImageCore]]
-deps = ["ColorVectorSpace", "Colors", "FixedPointNumbers", "MappedArrays", "MosaicViews", "OffsetArrays", "PaddedViews", "PrecompileTools", "Reexport"]
-git-tree-sha1 = "8c193230235bbcee22c8066b0374f63b5683c2d3"
-uuid = "a09fc81d-aa75-5fe9-8630-4744c3626534"
-version = "0.10.5"
-
-[[deps.ImageIO]]
-deps = ["FileIO", "IndirectArrays", "JpegTurbo", "LazyModules", "Netpbm", "OpenEXR", "PNGFiles", "QOI", "Sixel", "TiffImages", "UUIDs", "WebP"]
-git-tree-sha1 = "f0f005f997dfb8c5fe23920d99458a9619873893"
-uuid = "82e4d734-157c-48bb-816b-45c225c6df19"
-version = "0.6.10"
-
-[[deps.ImageMetadata]]
-deps = ["AxisArrays", "ImageAxes", "ImageBase", "ImageCore"]
-git-tree-sha1 = "2a81c3897be6fbcde0802a0ebe6796d0562f63ec"
-uuid = "bc367c6b-8a6b-528e-b4bd-a4b897500b49"
-version = "0.9.10"
-
-[[deps.Imath_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "dcc8d0cd653e55213df9b75ebc6fe4a8d3254c65"
-uuid = "905a6f67-0a94-5f89-b386-d35d92009cd1"
-version = "3.2.2+0"
-
-[[deps.IndirectArrays]]
-git-tree-sha1 = "012e604e1c7458645cb8b436f8fba789a51b257f"
-uuid = "9b13fd28-a010-5f03-acff-a1bbcff69959"
-version = "1.0.0"
-
-[[deps.Inflate]]
-git-tree-sha1 = "d1b1b796e47d94588b3757fe84fbf65a5ec4a80d"
-uuid = "d25df0c9-e2be-5dd7-82c8-3ad0b3e990b9"
-version = "0.1.5"
-
-[[deps.IntegerMathUtils]]
-git-tree-sha1 = "c72458f1962faeb003bf23cbdb75164fe6280906"
-uuid = "18e54dd8-cb9d-406c-a71d-865a43cbb235"
-version = "0.1.4"
-
-[[deps.InteractiveUtils]]
-deps = ["Markdown"]
-uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
-version = "1.11.0"
-
-[[deps.Interpolations]]
-deps = ["Adapt", "AxisAlgorithms", "ChainRulesCore", "LinearAlgebra", "OffsetArrays", "Random", "Ratios", "SharedArrays", "SparseArrays", "StaticArrays", "WoodburyMatrices"]
-git-tree-sha1 = "48922d06068130f87e43edef52382e6a94305ae6"
-uuid = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
-version = "0.16.3"
-
-    [deps.Interpolations.extensions]
-    InterpolationsForwardDiffExt = "ForwardDiff"
-    InterpolationsUnitfulExt = "Unitful"
-
-    [deps.Interpolations.weakdeps]
-    ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
-    Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
-
-[[deps.IntervalArithmetic]]
-deps = ["CRlibm", "CoreMath", "MacroTools", "OpenBLASConsistentFPCSR_jll", "Printf", "Random", "RoundingEmulator"]
-git-tree-sha1 = "1c531bf0f8a5c60a340926e058fd3f209b5eef5d"
-uuid = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
-version = "1.0.12"
-
-    [deps.IntervalArithmetic.extensions]
-    IntervalArithmeticArblibExt = "Arblib"
-    IntervalArithmeticDiffRulesExt = "DiffRules"
-    IntervalArithmeticForwardDiffExt = "ForwardDiff"
-    IntervalArithmeticIntervalSetsExt = "IntervalSets"
-    IntervalArithmeticIrrationalConstantsExt = "IrrationalConstants"
-    IntervalArithmeticLinearAlgebraExt = "LinearAlgebra"
-    IntervalArithmeticMakieExt = "Makie"
-    IntervalArithmeticRecipesBaseExt = "RecipesBase"
-    IntervalArithmeticSparseArraysExt = "SparseArrays"
-
-    [deps.IntervalArithmetic.weakdeps]
-    Arblib = "fb37089c-8514-4489-9461-98f9c8763369"
-    DiffRules = "b552c78f-8df3-52c6-915a-8e097449b14b"
-    ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
-    IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
-    IrrationalConstants = "92d709cd-6900-40b7-9082-c6be49f344b6"
-    LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-    Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
-    RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
-    SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-
-[[deps.IntervalSets]]
-git-tree-sha1 = "79d6bd28c8d9bccc2229784f1bd637689b256377"
-uuid = "8197267c-284f-5f27-9208-e0e47529a953"
-version = "0.7.14"
-
-    [deps.IntervalSets.extensions]
-    IntervalSetsRandomExt = "Random"
-    IntervalSetsRecipesBaseExt = "RecipesBase"
-    IntervalSetsStatisticsExt = "Statistics"
-
-    [deps.IntervalSets.weakdeps]
-    Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
-    RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
-    Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
-
-[[deps.InverseFunctions]]
-git-tree-sha1 = "a779299d77cd080bf77b97535acecd73e1c5e5cb"
-uuid = "3587e190-3f89-42d0-90ee-14403ec27112"
-version = "0.1.17"
-weakdeps = ["Dates", "Test"]
-
-    [deps.InverseFunctions.extensions]
-    InverseFunctionsDatesExt = "Dates"
-    InverseFunctionsTestExt = "Test"
-
-[[deps.IrrationalConstants]]
-git-tree-sha1 = "b2d91fe939cae05960e760110b328288867b5758"
-uuid = "92d709cd-6900-40b7-9082-c6be49f344b6"
-version = "0.2.6"
-
-[[deps.Isoband]]
-deps = ["isoband_jll"]
-git-tree-sha1 = "f9b6d97355599074dc867318950adaa6f9946137"
-uuid = "f1662d9f-8043-43de-a69a-05efc1cc6ff4"
-version = "0.1.1"
-
-[[deps.IterTools]]
-git-tree-sha1 = "42d5f897009e7ff2cf88db414a389e5ed1bdd023"
-uuid = "c8e1da08-722c-5040-9ed9-7db0dc04731e"
-version = "1.10.0"
-
-[[deps.IteratorInterfaceExtensions]]
-git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
-uuid = "82899510-4779-5014-852e-03e436cf321d"
-version = "1.0.0"
-
-[[deps.JLLWrappers]]
-deps = ["Artifacts", "Preferences"]
-git-tree-sha1 = "7204148362dafe5fe6a273f855b8ccbe4df8173e"
-uuid = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
-version = "1.8.0"
-
-[[deps.JSON]]
-deps = ["Dates", "Logging", "Parsers", "PrecompileTools", "StructUtils", "UUIDs", "Unicode"]
-git-tree-sha1 = "88352712893ec50bee3680605891eaf0e9ed6368"
-uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
-version = "1.8.0"
-
-    [deps.JSON.extensions]
-    JSONArrowExt = ["ArrowTypes"]
-
-    [deps.JSON.weakdeps]
-    ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
-
-[[deps.JpegTurbo]]
-deps = ["CEnum", "FileIO", "ImageCore", "JpegTurbo_jll", "TOML"]
-git-tree-sha1 = "9496de8fb52c224a2e3f9ff403947674517317d9"
-uuid = "b835a17e-a41a-41e7-81f0-2f016b05efe0"
-version = "0.1.6"
-
-[[deps.JpegTurbo_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "037babc10853eeb8e585418922246cb97b8e5b74"
-uuid = "aacddb02-875f-59d6-b918-886e6ef4fbf8"
-version = "3.2.0+1"
-
-[[deps.JuliaSyntaxHighlighting]]
-deps = ["StyledStrings"]
-uuid = "ac6e5ff7-fb65-4e79-a425-ec3bc9c03011"
-version = "1.12.0"
-
-[[deps.KernelDensity]]
-deps = ["Distributions", "DocStringExtensions", "FFTA", "Interpolations", "StatsBase"]
-git-tree-sha1 = "9eda8292dd3268b3b7ec9df21bbfac24e177ec52"
-uuid = "5ab0869b-81aa-558d-bb23-cbf5423bbe9b"
-version = "0.6.12"
-
-[[deps.LAME_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "059aabebaa7c82ccb853dd4a0ee9d17796f7e1bc"
-uuid = "c1c5ebd0-6772-5130-a774-d5fcae4a789d"
-version = "3.100.3+0"
-
-[[deps.LERC_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "39bca05343661c347aae0bca57a5994a0bf4f08d"
-uuid = "88015f11-f218-50d7-93a8-a6af411a945d"
-version = "4.2.0+0"
-
-[[deps.LLVMOpenMP_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "b7970cef8ae1c990ba0c09cd8bdc1145e006632f"
-uuid = "1d63c593-3942-5779-bab2-d838dc0a180e"
-version = "22.1.7+0"
-
-[[deps.LaTeXStrings]]
-git-tree-sha1 = "f88f3ccef05a6a72a0cf0ed417c8fd68530f4ab2"
-uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
-version = "1.4.1"
-
-[[deps.Latexify]]
-deps = ["Format", "Ghostscript_jll", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "OrderedCollections", "Requires"]
-git-tree-sha1 = "df7566479bd64f20bd16b09960145e70160ffb3b"
-uuid = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
-version = "0.16.12"
-
-    [deps.Latexify.extensions]
-    DataFramesExt = "DataFrames"
-    SparseArraysExt = "SparseArrays"
-    SymEngineExt = "SymEngine"
-    TectonicExt = "tectonic_jll"
-
-    [deps.Latexify.weakdeps]
-    DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
-    SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-    SymEngine = "123dc426-2d89-5057-bbad-38513e3affd8"
-    tectonic_jll = "d7dd28d6-a5e6-559c-9131-7eb760cdacc5"
-
-[[deps.LazyModules]]
-git-tree-sha1 = "a560dd966b386ac9ae60bdd3a3d3a326062d3c3e"
-uuid = "8cdb02fc-e678-4876-92c5-9defec4f444e"
-version = "0.3.1"
-
-[[deps.LibCURL]]
-deps = ["LibCURL_jll", "MozillaCACerts_jll"]
-uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
-version = "0.6.4"
-
-[[deps.LibCURL_jll]]
-deps = ["Artifacts", "LibSSH2_jll", "Libdl", "OpenSSL_jll", "Zlib_jll", "nghttp2_jll"]
-uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
-version = "8.15.0+0"
-
-[[deps.LibGit2]]
-deps = ["LibGit2_jll", "NetworkOptions", "Printf", "SHA"]
-uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
-version = "1.11.0"
-
-[[deps.LibGit2_jll]]
-deps = ["Artifacts", "LibSSH2_jll", "Libdl", "OpenSSL_jll"]
-uuid = "e37daf67-58a4-590a-8e99-b0245dd2ffc5"
-version = "1.9.0+0"
-
-[[deps.LibSSH2_jll]]
-deps = ["Artifacts", "Libdl", "OpenSSL_jll"]
-uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
-version = "1.11.3+1"
-
-[[deps.Libdl]]
-uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
-version = "1.11.0"
-
-[[deps.Libffi_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "c8da7e6a91781c41a863611c7e966098d783c57a"
-uuid = "e9f186c6-92d2-5b65-8a66-fee21dc1b490"
-version = "3.4.7+0"
-
-[[deps.Libglvnd_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libX11_jll", "Xorg_libXext_jll"]
-git-tree-sha1 = "d36c21b9e7c172a44a10484125024495e2625ac0"
-uuid = "7e76a0d4-f3c7-5321-8279-8d96eeed0f29"
-version = "1.7.1+1"
-
-[[deps.Libiconv_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "be484f5c92fad0bd8acfef35fe017900b0b73809"
-uuid = "94ce4f54-9a6c-5748-9c1c-f9c7231a4531"
-version = "1.18.0+0"
-
-[[deps.Libmount_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "cc3ad4faf30015a3e8094c9b5b7f19e85bdf2386"
-uuid = "4b2f31a3-9ecc-558c-b454-b3730dcb73e9"
-version = "2.42.0+0"
-
-[[deps.Libtiff_jll]]
-deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "LERC_jll", "Libdl", "XZ_jll", "Zlib_jll", "Zstd_jll"]
-git-tree-sha1 = "aebd334d06cee9f24cea70bd19a39749daf73881"
-uuid = "89763e89-9b03-5906-acba-b20f662cd828"
-version = "4.7.3+0"
-
-[[deps.Libuuid_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "d620582b1f0cbe2c72dd1d5bd195a9ce73370ab1"
-uuid = "38a345b3-de98-5d2b-a5d3-14cd9215e700"
-version = "2.42.0+0"
-
-[[deps.LinearAlgebra]]
-deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
-uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-version = "1.12.0"
-
-[[deps.LogExpFunctions]]
-deps = ["DocStringExtensions", "IrrationalConstants", "LinearAlgebra"]
-git-tree-sha1 = "bba2d9aa057d8f126415de240573e86a8f39d2a1"
-uuid = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
-version = "1.0.1"
-
-    [deps.LogExpFunctions.extensions]
-    LogExpFunctionsChainRulesCoreExt = "ChainRulesCore"
-    LogExpFunctionsChangesOfVariablesExt = "ChangesOfVariables"
-    LogExpFunctionsInverseFunctionsExt = "InverseFunctions"
-
-    [deps.LogExpFunctions.weakdeps]
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-    ChangesOfVariables = "9e997f8a-9a97-42d5-a9f1-ce6bfc15e2c0"
-    InverseFunctions = "3587e190-3f89-42d0-90ee-14403ec27112"
-
-[[deps.Logging]]
-uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
-version = "1.11.0"
-
-[[deps.MIMEs]]
-git-tree-sha1 = "c64d943587f7187e751162b3b84445bbbd79f691"
-uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
-version = "1.1.0"
-
-[[deps.MacroTools]]
-git-tree-sha1 = "1e0228a030642014fe5cfe68c2c0a818f9e3f522"
-uuid = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
-version = "0.5.16"
-
-[[deps.Makie]]
-deps = ["Animations", "Base64", "CRC32c", "ColorBrewer", "ColorSchemes", "ColorTypes", "Colors", "ComputePipeline", "Contour", "Dates", "DelaunayTriangulation", "Distributions", "DocStringExtensions", "Downloads", "FFMPEG_jll", "FileIO", "FilePaths", "FixedPointNumbers", "Format", "FreeType", "FreeTypeAbstraction", "GeometryBasics", "GridLayoutBase", "ImageBase", "ImageIO", "InteractiveUtils", "Interpolations", "IntervalSets", "InverseFunctions", "Isoband", "KernelDensity", "LaTeXStrings", "LinearAlgebra", "MacroTools", "Markdown", "MathTeXEngine", "Observables", "OffsetArrays", "PNGFiles", "Packing", "Pkg", "PlotUtils", "PolygonOps", "PrecompileTools", "Printf", "REPL", "Random", "RelocatableFolders", "Scratch", "ShaderAbstractions", "SignedDistanceFields", "SparseArrays", "Statistics", "StatsBase", "StatsFuns", "StructArrays", "TriplotBase", "UnicodeFun", "Unitful"]
-git-tree-sha1 = "37b10d17f74f54dc5fa7d3c6c20fd75613c71d80"
-uuid = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
-version = "0.24.14"
-
-    [deps.Makie.extensions]
-    MakieDynamicQuantitiesExt = "DynamicQuantities"
-
-    [deps.Makie.weakdeps]
-    DynamicQuantities = "06fc5a27-2a28-4c7c-a15d-362465fb6821"
-
-[[deps.MappedArrays]]
-git-tree-sha1 = "0ee4497a4e80dbd29c058fcee6493f5219556f40"
-uuid = "dbb5928d-eab1-5f90-85c2-b9b0edb7c900"
-version = "0.4.3"
-
-[[deps.Markdown]]
-deps = ["Base64", "JuliaSyntaxHighlighting", "StyledStrings"]
-uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
-version = "1.11.0"
-
-[[deps.MathTeXEngine]]
-deps = ["AbstractTrees", "Automa", "DataStructures", "FreeTypeAbstraction", "GeometryBasics", "LaTeXStrings", "REPL", "RelocatableFolders", "UnicodeFun"]
-git-tree-sha1 = "aa1078778be5a8e5259ff04fbc3d258b3e78d464"
-uuid = "0a4f8689-d25c-4efe-a92b-7142dfc1aa53"
-version = "0.6.9"
-
-[[deps.Missings]]
-deps = ["DataAPI"]
-git-tree-sha1 = "ec4f7fbeab05d7747bdf98eb74d130a2a2ed298d"
-uuid = "e1d29d7a-bbdc-5cf2-9ac0-f12de2c33e28"
-version = "1.2.0"
-
-[[deps.Mmap]]
-uuid = "a63ad114-7e13-5084-954f-fe012c677804"
-version = "1.11.0"
-
-[[deps.MosaicViews]]
-deps = ["MappedArrays", "OffsetArrays", "PaddedViews", "StackViews"]
-git-tree-sha1 = "7b86a5d4d70a9f5cdf2dacb3cbe6d251d1a61dbe"
-uuid = "e94cdb99-869f-56ef-bcf0-1ae2bcbe0389"
-version = "0.3.4"
-
-[[deps.MozillaCACerts_jll]]
-uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
-version = "2025.11.4"
-
-[[deps.MuladdMacro]]
-deps = ["PrecompileTools"]
-git-tree-sha1 = "283bf85d4a767481dd924dff0eee1735e95f449e"
-uuid = "46d2c3a1-f734-5fdb-9937-b9b9aeba4221"
-version = "0.2.7"
-
-[[deps.NaNMath]]
-deps = ["OpenLibm_jll"]
-git-tree-sha1 = "dbd2e8cd2c1c27f0b584f6661b4309609c5a685e"
-uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
-version = "1.1.4"
-
-[[deps.Netpbm]]
-deps = ["FileIO", "ImageCore", "ImageMetadata"]
-git-tree-sha1 = "d92b107dbb887293622df7697a2223f9f8176fcd"
-uuid = "f09324ee-3d7c-5217-9330-fc30815ba969"
-version = "1.1.1"
-
-[[deps.NetworkOptions]]
-uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
-version = "1.3.0"
-
-[[deps.Observables]]
-git-tree-sha1 = "7438a59546cf62428fc9d1bc94729146d37a7225"
-uuid = "510215fc-4207-5dde-b226-833fc4488ee2"
-version = "0.5.5"
-
-[[deps.OffsetArrays]]
-git-tree-sha1 = "117432e406b5c023f665fa73dc26e79ec3630151"
-uuid = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
-version = "1.17.0"
-weakdeps = ["Adapt"]
-
-    [deps.OffsetArrays.extensions]
-    OffsetArraysAdaptExt = "Adapt"
-
-[[deps.Ogg_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "b6aa4566bb7ae78498a5e68943863fa8b5231b59"
-uuid = "e7412a2a-1a6e-54c0-be00-318e2571c051"
-version = "1.3.6+0"
-
-[[deps.OpenBLASConsistentFPCSR_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "38a93f17e431141c6470bb67a88952a7c4f0e928"
-uuid = "6cdc7f73-28fd-5e50-80fb-958a8875b1af"
-version = "0.3.34+0"
-
-[[deps.OpenBLAS_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
-uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
-version = "0.3.29+0"
-
-[[deps.OpenEXR]]
-deps = ["Colors", "FileIO", "OpenEXR_jll"]
-git-tree-sha1 = "97db9e07fe2091882c765380ef58ec553074e9c7"
-uuid = "52e1d378-f018-4a11-a4be-720524705ac7"
-version = "0.3.3"
-
-[[deps.OpenEXR_jll]]
-deps = ["Artifacts", "Imath_jll", "JLLWrappers", "Libdl", "Zlib_jll"]
-git-tree-sha1 = "1bcebd887dd33f1108210b3954049b1bb8af0e7a"
-uuid = "18a262bb-aa17-5467-a713-aee519bc75cb"
-version = "3.4.15+0"
-
-[[deps.OpenLibm_jll]]
-deps = ["Artifacts", "Libdl"]
-uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.7+0"
-
-[[deps.OpenSSL_jll]]
-deps = ["Artifacts", "Libdl"]
-uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
-version = "3.5.6+0"
-
-[[deps.OpenSpecFun_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "1346c9208249809840c91b26703912dff463d335"
-uuid = "efe28fd5-8261-553b-a9e1-b2916fc3738e"
-version = "0.5.6+0"
-
-[[deps.Opus_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "e2bb57a313a74b8104064b7efd01406c0a50d2ff"
-uuid = "91d4177d-7536-5919-b921-800302f37372"
-version = "1.6.1+0"
-
-[[deps.OrderedCollections]]
-git-tree-sha1 = "94ba93778373a53bfd5a0caaf7d809c445292ff4"
-uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
-version = "1.8.2"
-
-[[deps.PCRE2_jll]]
-deps = ["Artifacts", "Libdl"]
-uuid = "efcefdf7-47ab-520b-bdef-62a2eaa19f15"
-version = "10.44.0+1"
-
-[[deps.PDMats]]
-deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
-git-tree-sha1 = "123266c25174ef6c8d4718920abc206452cf8de6"
-uuid = "90014a1f-27ba-587c-ab20-58faa44d9150"
-version = "0.11.41"
-weakdeps = ["StatsBase"]
-
-    [deps.PDMats.extensions]
-    StatsBaseExt = "StatsBase"
-
-[[deps.PNGFiles]]
-deps = ["Base64", "CEnum", "ImageCore", "IndirectArrays", "OffsetArrays", "libpng_jll"]
-git-tree-sha1 = "32b657a0d57c310a1a172bfc8c8cf68c5e674323"
-uuid = "f57f5aa1-a3ce-4bc8-8ab9-96f992907883"
-version = "0.4.5"
-
-[[deps.Packing]]
-deps = ["GeometryBasics"]
-git-tree-sha1 = "bc5bf2ea3d5351edf285a06b0016788a121ce92c"
-uuid = "19eb6ba3-879d-56ad-ad62-d5c202156566"
-version = "0.5.1"
-
-[[deps.PaddedViews]]
-deps = ["OffsetArrays"]
-git-tree-sha1 = "0fac6313486baae819364c52b4f483450a9d793f"
-uuid = "5432bcbf-9aad-5242-b902-cca2824c8663"
-version = "0.5.12"
-
-[[deps.Pango_jll]]
-deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "FriBidi_jll", "Glib_jll", "HarfBuzz_jll", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "1912a9f1b9ca55005b03ba075f8e19993583e237"
-uuid = "36c8627f-9965-5494-a995-c6b170f724f3"
-version = "1.58.2+0"
-
-[[deps.Parsers]]
-deps = ["Dates", "PrecompileTools"]
-git-tree-sha1 = "663e8b48b789916221e0765393b289ca6c88f24e"
-uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "3.0.0"
-
-[[deps.Pixman_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LLVMOpenMP_jll", "Libdl"]
-git-tree-sha1 = "e4a6721aa89e62e5d4217c0b21bd714263779dda"
-uuid = "30392449-352a-5448-841d-b1acce4e97dc"
-version = "0.46.4+0"
-
-[[deps.Pkg]]
-deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "Random", "SHA", "TOML", "Tar", "UUIDs", "p7zip_jll"]
-uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-version = "1.12.1"
-weakdeps = ["REPL"]
-
-    [deps.Pkg.extensions]
-    REPLExt = "REPL"
-
-[[deps.PkgVersion]]
-deps = ["Pkg"]
-git-tree-sha1 = "f9501cc0430a26bc3d156ae1b5b0c1b47af4d6da"
-uuid = "eebad327-c553-4316-9ea0-9fa01ccd7688"
-version = "0.3.3"
-
-[[deps.PlotUtils]]
-deps = ["ColorSchemes", "Colors", "Dates", "PrecompileTools", "Printf", "Random", "Reexport", "StableRNGs", "Statistics"]
-git-tree-sha1 = "26ca162858917496748aad52bb5d3be4d26a228a"
-uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
-version = "1.4.4"
-
-[[deps.PlutoTeachingTools]]
-deps = ["Downloads", "HypertextLiteral", "Latexify", "Markdown", "PlutoUI"]
-git-tree-sha1 = "90b41ced6bacd8c01bd05da8aed35c5458891749"
-uuid = "661c6b06-c737-4d37-b85c-46df65de6f69"
-version = "0.4.7"
-
-[[deps.PlutoUI]]
-deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Downloads", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
-git-tree-sha1 = "e189d0623e7ce9c37389bac17e80aac3b0302e75"
-uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.83"
-
-[[deps.PolygonOps]]
-git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
-uuid = "647866c9-e3ac-4575-94e7-e3d426903924"
-version = "0.1.2"
-
-[[deps.PrecompileTools]]
-deps = ["Preferences"]
-git-tree-sha1 = "edbeefc7a4889f528644251bdb5fc9ab5348bc2c"
-uuid = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
-version = "1.3.4"
-
-[[deps.Preferences]]
-deps = ["TOML"]
-git-tree-sha1 = "8b770b60760d4451834fe79dd483e318eee709c4"
-uuid = "21216c6a-2e73-6563-6e65-726566657250"
-version = "1.5.2"
-
-[[deps.Primes]]
-deps = ["IntegerMathUtils"]
-git-tree-sha1 = "25cdd1d20cd005b52fc12cb6be3f75faaf59bb9b"
-uuid = "27ebfcd6-29c5-5fa9-bf4b-fb8fc14df3ae"
-version = "0.5.7"
-
-[[deps.Printf]]
-deps = ["Unicode"]
-uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
-version = "1.11.0"
-
-[[deps.ProgressMeter]]
-deps = ["Distributed", "Printf"]
-git-tree-sha1 = "fbb92c6c56b34e1a2c4c36058f68f332bec840e7"
-uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
-version = "1.11.0"
-
-[[deps.PtrArrays]]
-git-tree-sha1 = "4fbbafbc6251b883f4d2705356f3641f3652a7fe"
-uuid = "43287f4e-b6f4-7ad1-bb20-aadabca52c3d"
-version = "1.4.0"
-
-[[deps.QOI]]
-deps = ["ColorTypes", "FileIO", "FixedPointNumbers"]
-git-tree-sha1 = "472daaa816895cb7aee81658d4e7aec901fa1106"
-uuid = "4b34888f-f399-49d4-9bb3-47ed5cae4e65"
-version = "1.0.2"
-
-[[deps.QuadGK]]
-deps = ["DataStructures", "LinearAlgebra"]
-git-tree-sha1 = "5e8e8b0ab68215d7a2b14b9921a946fee794749e"
-uuid = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
-version = "2.11.3"
-
-    [deps.QuadGK.extensions]
-    QuadGKEnzymeExt = "Enzyme"
-
-    [deps.QuadGK.weakdeps]
-    Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
-
-[[deps.REPL]]
-deps = ["InteractiveUtils", "JuliaSyntaxHighlighting", "Markdown", "Sockets", "StyledStrings", "Unicode"]
-uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
-version = "1.11.0"
-
-[[deps.Random]]
-deps = ["SHA"]
-uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
-version = "1.11.0"
-
-[[deps.RangeArrays]]
-git-tree-sha1 = "b9039e93773ddcfc828f12aadf7115b4b4d225f5"
-uuid = "b3c3ace0-ae52-54e7-9d0b-2c1406fd6b9d"
-version = "0.3.2"
-
-[[deps.Ratios]]
-deps = ["Requires"]
-git-tree-sha1 = "1342a47bf3260ee108163042310d26f2be5ec90b"
-uuid = "c84ed2f1-dad5-54f0-aa8e-dbefe2724439"
-version = "0.4.5"
-weakdeps = ["FixedPointNumbers"]
-
-    [deps.Ratios.extensions]
-    RatiosFixedPointNumbersExt = "FixedPointNumbers"
-
-[[deps.Reexport]]
-git-tree-sha1 = "45e428421666073eab6f2da5c9d310d99bb12f9b"
-uuid = "189a3867-3050-52da-a836-e630ba90ab69"
-version = "1.2.2"
-
-[[deps.RelocatableFolders]]
-deps = ["SHA", "Scratch"]
-git-tree-sha1 = "ffdaf70d81cf6ff22c2b6e733c900c3321cab864"
-uuid = "05181044-ff0b-4ac5-8273-598c1e38db00"
-version = "1.0.1"
-
-[[deps.Requires]]
-deps = ["UUIDs"]
-git-tree-sha1 = "62389eeff14780bfe55195b7204c0d8738436d64"
-uuid = "ae029012-a4dd-5104-9daa-d747884805df"
-version = "1.3.1"
-
-[[deps.Rmath]]
-deps = ["Random", "Rmath_jll"]
-git-tree-sha1 = "5b3d50eb374cea306873b371d3f8d3915a018f0b"
-uuid = "79098fc4-a85e-5d69-aa6a-4863f24498fa"
-version = "0.9.0"
-
-[[deps.Rmath_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "6d40b2fe70437b01397d2a4d5b020008da4e7019"
-uuid = "f50d1b31-88e8-58de-be2c-1cc44531875f"
-version = "0.5.2+0"
-
-[[deps.Roots]]
-deps = ["Accessors", "CommonSolve", "Printf"]
-git-tree-sha1 = "7fb25a964849d90a0446366cdefca822e0e84900"
-uuid = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
-version = "3.0.6"
-
-    [deps.Roots.extensions]
-    RootsChainRulesCoreExt = "ChainRulesCore"
-    RootsForwardDiffExt = "ForwardDiff"
-    RootsIntervalRootFindingExt = "IntervalRootFinding"
-    RootsSymPyExt = "SymPy"
-    RootsSymPyPythonCallExt = "SymPyPythonCall"
-    RootsUnitfulExt = "Unitful"
-
-    [deps.Roots.weakdeps]
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-    ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
-    IntervalRootFinding = "d2bf35a9-74e0-55ec-b149-d360ff49b807"
-    SymPy = "24249f21-da20-56a4-8eb1-6a02cf4ae2e6"
-    SymPyPythonCall = "bc8888f7-b21e-4b7c-a06a-5d9c9496438c"
-    Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
-
-[[deps.RoundingEmulator]]
-git-tree-sha1 = "40b9edad2e5287e05bd413a38f61a8ff55b9557b"
-uuid = "5eaf0fd0-dfba-4ccb-bf02-d820a40db705"
-version = "0.2.1"
-
-[[deps.SHA]]
-uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
-version = "0.7.0"
-
-[[deps.SIMD]]
-deps = ["PrecompileTools"]
-git-tree-sha1 = "e24dc23107d426a096d3eae6c165b921e74c18e4"
-uuid = "fdea26ae-647d-5447-a871-4b548cad5224"
-version = "3.7.2"
-
-[[deps.Scratch]]
-deps = ["Dates"]
-git-tree-sha1 = "9b81b8393e50b7d4e6d0a9f14e192294d3b7c109"
-uuid = "6c6a2e73-6563-6170-7368-637461726353"
-version = "1.3.0"
-
-[[deps.Serialization]]
-uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
-version = "1.11.0"
-
-[[deps.ShaderAbstractions]]
-deps = ["ColorTypes", "FixedPointNumbers", "GeometryBasics", "LinearAlgebra", "Observables", "StaticArrays"]
-git-tree-sha1 = "818554664a2e01fc3784becb2eb3a82326a604b6"
-uuid = "65257c39-d410-5151-9873-9b3e5be5013e"
-version = "0.5.0"
-
-[[deps.SharedArrays]]
-deps = ["Distributed", "Mmap", "Random", "Serialization"]
-uuid = "1a1011a3-84de-559e-8e89-a11a2f7dc383"
-version = "1.11.0"
-
-[[deps.SignedDistanceFields]]
-deps = ["Statistics"]
-git-tree-sha1 = "3949ad92e1c9d2ff0cd4a1317d5ecbba682f4b92"
-uuid = "73760f76-fbc4-59ce-8f25-708e95d2df96"
-version = "0.4.1"
-
-[[deps.SimpleTraits]]
-deps = ["InteractiveUtils", "MacroTools"]
-git-tree-sha1 = "7ddb0b49c109481b046972c0e4ab02b2127d6a75"
-uuid = "699a6c99-e7fa-54fc-8d76-47d257e15c1d"
-version = "0.9.6"
-
-[[deps.Sixel]]
-deps = ["Dates", "FileIO", "ImageCore", "IndirectArrays", "OffsetArrays", "REPL", "libsixel_jll"]
-git-tree-sha1 = "0494aed9501e7fb65daba895fb7fd57cc38bc743"
-uuid = "45858cf5-a6b0-47a3-bbea-62219f50df47"
-version = "0.1.5"
-
-[[deps.Sockets]]
-uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
-version = "1.11.0"
-
-[[deps.SortingAlgorithms]]
-deps = ["DataStructures"]
-git-tree-sha1 = "13cd91cc9be159e3f4d95b857fa2aa383b53772a"
-uuid = "a2af1166-a08f-5f64-846c-94a0d3cef48c"
-version = "1.2.3"
-
-[[deps.SparseArrays]]
-deps = ["Libdl", "LinearAlgebra", "Random", "Serialization", "SuiteSparse_jll"]
-uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-version = "1.12.0"
-
-[[deps.SpecialFunctions]]
-deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
-git-tree-sha1 = "429071b23f4c9a13fb6582f807cc2ef454082408"
-uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
-version = "2.9.0"
-weakdeps = ["ChainRulesCore"]
-
-    [deps.SpecialFunctions.extensions]
-    SpecialFunctionsChainRulesCoreExt = "ChainRulesCore"
-
-[[deps.StableRNGs]]
-deps = ["Random"]
-git-tree-sha1 = "4f96c596b8c8258cc7d3b19797854d368f243ddc"
-uuid = "860ef19b-820b-49d6-a774-d7a799459cd3"
-version = "1.0.4"
-
-[[deps.StackViews]]
-deps = ["OffsetArrays"]
-git-tree-sha1 = "be1cf4eb0ac528d96f5115b4ed80c26a8d8ae621"
-uuid = "cae243ae-269e-4f55-b966-ac2d0dc13c15"
-version = "0.1.2"
-
-[[deps.StaticArrays]]
-deps = ["LinearAlgebra", "PrecompileTools", "Random", "StaticArraysCore"]
-git-tree-sha1 = "e206cf4850fd7ac4255ffd2b98922f563e18ac53"
-uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.9.20"
-weakdeps = ["ChainRulesCore", "Statistics"]
-
-    [deps.StaticArrays.extensions]
-    StaticArraysChainRulesCoreExt = "ChainRulesCore"
-    StaticArraysStatisticsExt = "Statistics"
-
-[[deps.StaticArraysCore]]
-git-tree-sha1 = "6ab403037779dae8c514bad259f32a447262455a"
-uuid = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
-version = "1.4.4"
-
-[[deps.Statistics]]
-deps = ["LinearAlgebra"]
-git-tree-sha1 = "e2b53ce13a53367e96601081e33d34746b571bad"
-uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
-version = "1.11.5"
-weakdeps = ["SparseArrays"]
-
-    [deps.Statistics.extensions]
-    SparseArraysExt = ["SparseArrays"]
-
-[[deps.StatsAPI]]
-deps = ["LinearAlgebra"]
-git-tree-sha1 = "178ed29fd5b2a2cfc3bd31c13375ae925623ff36"
-uuid = "82ae8749-77ed-4fe6-ae5f-f523153014b0"
-version = "1.8.0"
-
-[[deps.StatsBase]]
-deps = ["AliasTables", "DataAPI", "DataStructures", "IrrationalConstants", "LinearAlgebra", "LogExpFunctions", "Missings", "Printf", "Random", "SortingAlgorithms", "SparseArrays", "Statistics", "StatsAPI"]
-git-tree-sha1 = "adb9da019510162e67a4493fc235c23203d8b09e"
-uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
-version = "0.34.13"
-
-[[deps.StatsFuns]]
-deps = ["HypergeometricFunctions", "IrrationalConstants", "LogExpFunctions", "Reexport", "Rmath", "SpecialFunctions"]
-git-tree-sha1 = "770240df9a3b8888065046948f7a09b4e0f997d5"
-uuid = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
-version = "2.2.0"
-weakdeps = ["ChainRulesCore", "InverseFunctions"]
-
-    [deps.StatsFuns.extensions]
-    StatsFunsChainRulesCoreExt = "ChainRulesCore"
-    StatsFunsInverseFunctionsExt = "InverseFunctions"
-
-[[deps.StructArrays]]
-deps = ["ConstructionBase", "DataAPI", "Tables"]
-git-tree-sha1 = "ad8002667372439f2e3611cfd14097e03fa4bccd"
-uuid = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
-version = "0.7.3"
-
-    [deps.StructArrays.extensions]
-    StructArraysAdaptExt = "Adapt"
-    StructArraysGPUArraysCoreExt = ["GPUArraysCore", "KernelAbstractions"]
-    StructArraysLinearAlgebraExt = "LinearAlgebra"
-    StructArraysSparseArraysExt = "SparseArrays"
-    StructArraysStaticArraysExt = "StaticArrays"
-
-    [deps.StructArrays.weakdeps]
-    Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
-    GPUArraysCore = "46192b85-c4d5-4398-a991-12ede77f4527"
-    KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
-    LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-    SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-    StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
-
-[[deps.StructUtils]]
-deps = ["Dates", "UUIDs"]
-git-tree-sha1 = "2d0fc55c61321ba245c47be599570d11bac50303"
-uuid = "ec057cc2-7a8d-4b58-b3b3-92acb9f63b42"
-version = "2.8.5"
-
-    [deps.StructUtils.extensions]
-    StructUtilsMeasurementsExt = ["Measurements"]
-    StructUtilsStaticArraysCoreExt = ["StaticArraysCore"]
-    StructUtilsTablesExt = ["Tables"]
-
-    [deps.StructUtils.weakdeps]
-    Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
-    StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
-    Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-
-[[deps.StyledStrings]]
-uuid = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
-version = "1.11.0"
-
-[[deps.SuiteSparse]]
-deps = ["Libdl", "LinearAlgebra", "Serialization", "SparseArrays"]
-uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
-
-[[deps.SuiteSparse_jll]]
-deps = ["Artifacts", "Libdl", "libblastrampoline_jll"]
-uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
-version = "7.8.3+2"
-
-[[deps.TOML]]
-deps = ["Dates"]
-uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
-version = "1.0.3"
-
-[[deps.TableTraits]]
-deps = ["IteratorInterfaceExtensions"]
-git-tree-sha1 = "c06b2f539df1c6efa794486abfb6ed2022561a39"
-uuid = "3783bdb8-4a98-5b6b-af9a-565f29a5fe9c"
-version = "1.0.1"
-
-[[deps.Tables]]
-deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "OrderedCollections", "TableTraits"]
-git-tree-sha1 = "a94d9bdda1b7bed0046cea645639ab3f62196fac"
-uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-version = "1.14.0"
-
-[[deps.Tar]]
-deps = ["ArgTools", "SHA"]
-uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
-version = "1.10.0"
-
-[[deps.TensorCore]]
-deps = ["LinearAlgebra"]
-git-tree-sha1 = "1feb45f88d133a655e001435632f019a9a1bcdb6"
-uuid = "62fd8b95-f654-4bbd-a8a5-9c27f68ccd50"
-version = "0.1.1"
-
-[[deps.Test]]
-deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
-uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-version = "1.11.0"
-
-[[deps.TiffImages]]
-deps = ["CodecZstd", "ColorTypes", "DataStructures", "DocStringExtensions", "FileIO", "FixedPointNumbers", "IndirectArrays", "Inflate", "Mmap", "OffsetArrays", "PkgVersion", "PrecompileTools", "ProgressMeter", "SIMD", "UUIDs"]
-git-tree-sha1 = "9ca5f1f2d42f80df4b8c9f6ab5a64f438bbd9976"
-uuid = "731e570b-9d59-4bfa-96dc-6df516fadf69"
-version = "0.11.9"
-
-[[deps.TranscodingStreams]]
-git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"
-uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
-version = "0.11.3"
-
-[[deps.Tricks]]
-git-tree-sha1 = "311349fd1c93a31f783f977a71e8b062a57d4101"
-uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
-version = "0.1.13"
-
-[[deps.TriplotBase]]
-git-tree-sha1 = "4d4ed7f294cda19382ff7de4c137d24d16adc89b"
-uuid = "981d1d27-644d-49a2-9326-4793e63143c3"
-version = "0.1.0"
-
-[[deps.URIs]]
-git-tree-sha1 = "908fec9df6c5de98548ead82a468c95ccf6cd263"
-uuid = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
-version = "1.7.0"
-
-[[deps.UUIDs]]
-deps = ["Random", "SHA"]
-uuid = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
-version = "1.11.0"
-
-[[deps.Unicode]]
-uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
-version = "1.11.0"
-
-[[deps.UnicodeFun]]
-deps = ["REPL"]
-git-tree-sha1 = "53915e50200959667e78a92a418594b428dffddf"
-uuid = "1cfade01-22cf-5700-b092-accc4b62d6e1"
-version = "0.4.1"
-
-[[deps.Unitful]]
-deps = ["Dates", "LinearAlgebra", "Random"]
-git-tree-sha1 = "1f0f9f401753701a7e4113b5056ca38d33875b55"
-uuid = "1986cc42-f94f-5a68-af5c-568840ba703d"
-version = "1.29.0"
-
-    [deps.Unitful.extensions]
-    ConstructionBaseUnitfulExt = "ConstructionBase"
-    ForwardDiffExt = "ForwardDiff"
-    InverseFunctionsUnitfulExt = "InverseFunctions"
-    LatexifyExt = ["Latexify", "LaTeXStrings"]
-    NaNMathExt = "NaNMath"
-    PrintfExt = "Printf"
-
-    [deps.Unitful.weakdeps]
-    ConstructionBase = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
-    ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
-    InverseFunctions = "3587e190-3f89-42d0-90ee-14403ec27112"
-    LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
-    Latexify = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
-    NaNMath = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
-    Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
-
-[[deps.WebP]]
-deps = ["CEnum", "ColorTypes", "FileIO", "FixedPointNumbers", "ImageCore", "libwebp_jll"]
-git-tree-sha1 = "aa1ca3c47f119fbdae8770c29820e5e6119b83f2"
-uuid = "e3aaa7dc-3e4b-44e0-be63-ffb868ccd7c1"
-version = "0.1.3"
-
-[[deps.WoodburyMatrices]]
-deps = ["LinearAlgebra", "SparseArrays"]
-git-tree-sha1 = "248a7031b3da79a127f14e5dc5f417e26f9f6db7"
-uuid = "efce3f68-66dc-5838-9240-27a6d6f5f9b6"
-version = "1.1.0"
-
-[[deps.XZ_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "b29c22e245d092b8b4e8d3c09ad7baa586d9f573"
-uuid = "ffd25f8a-64ca-5728-b0f7-c24cf3aae800"
-version = "5.8.3+0"
-
-[[deps.Xorg_libX11_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libxcb_jll", "Xorg_xtrans_jll"]
-git-tree-sha1 = "808090ede1d41644447dd5cbafced4731c56bd2f"
-uuid = "4f6342f7-b3d2-589e-9d20-edeb45f2b2bc"
-version = "1.8.13+0"
-
-[[deps.Xorg_libXau_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "aa1261ebbac3ccc8d16558ae6799524c450ed16b"
-uuid = "0c0b7dd1-d40b-584c-a123-a41640f87eec"
-version = "1.0.13+0"
-
-[[deps.Xorg_libXdmcp_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "52858d64353db33a56e13c341d7bf44cd0d7b309"
-uuid = "a3789734-cfe1-5b06-b2d0-1dd0d9d62d05"
-version = "1.1.6+0"
-
-[[deps.Xorg_libXext_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libX11_jll"]
-git-tree-sha1 = "1a4a26870bf1e5d26cd585e38038d399d7e65706"
-uuid = "1082639a-0dae-5f34-9b06-72781eeb8cb3"
-version = "1.3.8+0"
-
-[[deps.Xorg_libXfixes_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libX11_jll"]
-git-tree-sha1 = "75e00946e43621e09d431d9b95818ee751e6b2ef"
-uuid = "d091e8ba-531a-589c-9de9-94069b037ed8"
-version = "6.0.2+0"
-
-[[deps.Xorg_libXrender_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libX11_jll"]
-git-tree-sha1 = "7ed9347888fac59a618302ee38216dd0379c480d"
-uuid = "ea2f1a96-1ddc-540d-b46f-429655e07cfa"
-version = "0.9.12+0"
-
-[[deps.Xorg_libpciaccess_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Zlib_jll"]
-git-tree-sha1 = "58972370b81423fc546c56a60ed1a009450177c3"
-uuid = "a65dc6b1-eb27-53a1-bb3e-dea574b5389e"
-version = "0.19.0+0"
-
-[[deps.Xorg_libxcb_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libXau_jll", "Xorg_libXdmcp_jll"]
-git-tree-sha1 = "bfcaf7ec088eaba362093393fe11aa141fa15422"
-uuid = "c7cfdc94-dc32-55de-ac96-5a1b8d977c5b"
-version = "1.17.1+0"
-
-[[deps.Xorg_xtrans_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "a63799ff68005991f9d9491b6e95bd3478d783cb"
-uuid = "c5fb5394-a638-5e4d-96e5-b29de1b5cf10"
-version = "1.6.0+0"
-
-[[deps.Zlib_jll]]
-deps = ["Libdl"]
-uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
-version = "1.3.1+2"
-
-[[deps.Zstd_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "446b23e73536f84e8037f5dce465e92275f6a308"
-uuid = "3161d3a3-bdf6-5164-811a-617609db77b4"
-version = "1.5.7+1"
-
-[[deps.isoband_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "51b5eeb3f98367157a7a12a1fb0aa5328946c03c"
-uuid = "9a68df92-36a6-505f-a73e-abb412b6bfb4"
-version = "0.2.3+0"
-
-[[deps.libaom_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "ef17c47d22224aaecc76e597ab21a072e025cf7b"
-uuid = "a4ae2306-e953-59d6-aa16-d00cac43593b"
-version = "3.14.1+0"
-
-[[deps.libass_jll]]
-deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "HarfBuzz_jll", "JLLWrappers", "Libdl", "Zlib_jll"]
-git-tree-sha1 = "cb007192783c56d8249db4cf0e3495001edfe414"
-uuid = "0ac62f75-1d6f-5e53-bd7c-93b484bb37c0"
-version = "0.17.5+0"
-
-[[deps.libblastrampoline_jll]]
-deps = ["Artifacts", "Libdl"]
-uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.15.0+0"
-
-[[deps.libdrm_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libpciaccess_jll"]
-git-tree-sha1 = "28e57478e8a160d346a19c28b3fffb9273bcc9c2"
-uuid = "8e53e030-5e6c-5a89-a30b-be5b7263a166"
-version = "2.4.134+0"
-
-[[deps.libfdk_aac_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "646634dd19587a56ee2f1199563ec056c5f228df"
-uuid = "f638f0a6-7fb0-5443-88ba-1cc74229b280"
-version = "2.0.4+0"
-
-[[deps.libpng_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Zlib_jll"]
-git-tree-sha1 = "e51150d5ab85cee6fc36726850f0e627ad2e4aba"
-uuid = "b53b4c65-9356-5827-b1ea-8c7a1a84506f"
-version = "1.6.58+0"
-
-[[deps.libsixel_jll]]
-deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "Libdl", "libpng_jll"]
-git-tree-sha1 = "c1733e347283df07689d71d61e14be986e49e47a"
-uuid = "075b6546-f08a-558a-be8f-8157d0f608a5"
-version = "1.10.5+0"
-
-[[deps.libva_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libX11_jll", "Xorg_libXext_jll", "Xorg_libXfixes_jll", "libdrm_jll"]
-git-tree-sha1 = "7dbf96baae3310fe2fa0df0ccbb3c6288d5816c9"
-uuid = "9a156e7d-b971-5f62-b2c9-67348b8fb97c"
-version = "2.23.0+0"
-
-[[deps.libvorbis_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Ogg_jll"]
-git-tree-sha1 = "11e1772e7f3cc987e9d3de991dd4f6b2602663a5"
-uuid = "f27f6e37-5d2b-51aa-960f-b287f2bc3b7a"
-version = "1.3.8+0"
-
-[[deps.libwebp_jll]]
-deps = ["Artifacts", "Giflib_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libglvnd_jll", "Libtiff_jll", "libpng_jll"]
-git-tree-sha1 = "4e4282c4d846e11dce56d74fa8040130b7a95cb3"
-uuid = "c5f90fcd-3b7e-5836-afba-fc50a0988cb2"
-version = "1.6.0+0"
-
-[[deps.nghttp2_jll]]
-deps = ["Artifacts", "Libdl"]
-uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
-version = "1.64.0+1"
-
-[[deps.p7zip_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
-uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
-version = "17.7.0+0"
-
-[[deps.x264_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "14cc7083fc6dff3cc44f2bc435ee96d06ed79aa7"
-uuid = "1270edf5-f2f9-52d2-97e9-ab00b5d0237a"
-version = "10164.0.1+0"
-
-[[deps.x265_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "e7b67590c14d487e734dcb925924c5dc43ec85f3"
-uuid = "dfaa095f-4041-5dcd-9319-2fabd8486b76"
-version = "4.1.0+0"
-"""
+# ╔═╡ 3f2caf5d-f427-4320-aed4-bca3377d25a5
+hint(md"a) Pentru ``r = 3.8`` sistemul este haotic (``\lambda > 0``): orice eroare de numărare crește exponențial, deci previziunile au sens doar pe cîțiva ani; cote fixe calculate pe baza unei populații „medii” pot fi catastrofale într-un an slab. b) Scăzînd ``r`` coborîm în diagrama de bifurcație spre stînga: un pescuit moderat poate **stabiliza** populația (cicluri, apoi echilibru), dar dacă ``r`` scade sub ``1``, populația dispare.")
 
 # ╔═╡ Cell order:
-# ╟─e7e9e376-adb0-11f1-91f0-f7cc7081a2ec
+# ╠═e7e9e376-adb0-11f1-91f0-f7cc7081a2ec
 # ╟─ce44eb4e-4b93-43fa-9105-1a10e9015ccd
+# ╟─f612f2c6-5756-406d-ae1d-f4d55b03e87f
 # ╟─5a49c8fe-6d17-4ce3-8865-3c0ba68af9c8
+# ╟─e07e94e7-938f-4546-b9cc-71f297ba1234
+# ╟─9f47681d-543a-40f2-a663-cc685f395057
 # ╟─1e558223-6779-4a42-b75c-39e7c1cfb046
 # ╟─aa081a08-4f61-48a9-865b-f3e487b5d231
 # ╟─09fd950e-89f8-4627-adfd-ae595cacc545
 # ╟─182c62ba-84ab-4233-b7d1-12a534582095
+# ╟─2c8f0921-8e71-49a9-b910-9940abcd25bd
 # ╟─dabc61af-b537-48ac-9e20-caca44da4b65
 # ╟─2a3b4bbb-7891-455c-99e0-d820d1b4ffe3
 # ╟─b46b9ded-0cd2-4fec-a51c-17baaaf52db9
 # ╟─4ce78424-8bc8-4cc4-986b-3ad350e627e1
 # ╟─01fa65ac-bed0-41de-b98c-1c1ca5ea5622
-# ╠═62ff91b1-fadf-435f-8a4e-0f2a146cf252
+# ╟─7128b3da-1907-4946-a117-41cbfa3381e5
+# ╟─37806866-5fb1-4f6e-8d76-0133ee350ebb
+# ╟─ef07c739-7314-48ac-bad0-0206cf48f2fe
+# ╟─c1b2337e-73a6-4842-8e62-7bfc97e8b519
+# ╟─bc222929-5b58-48b3-8b1a-00aa502ed3e5
+# ╟─3b9199fc-11d0-4908-beaa-9da23c27ffe8
+# ╟─a815fcaa-7fc1-4d0b-997e-6e6fe63158dd
+# ╟─4f5b0ffe-0db5-485e-94fc-6949b6416e62
+# ╟─6eb206ba-143d-423a-a1e4-0f1151ea024b
+# ╟─d1bdcb58-19f6-4759-8c16-49eb24fcff8b
+# ╟─62ff91b1-fadf-435f-8a4e-0f2a146cf252
 # ╟─05a9b88d-8511-4a57-9665-a56b88b64a8b
+# ╟─188dfdbb-4e1c-4dec-9741-108142504561
 # ╟─36c2d7fd-4356-4af2-a394-ae46993a7a3d
+# ╟─28c40066-0753-4f87-aed7-9e5a164fba7a
+# ╟─a2198010-22d4-4e79-82f9-18f5a8ed9dbe
+# ╟─83cd0f6c-d829-47f4-b679-d5ac5076ac81
 # ╟─7782ae4f-db38-4ab1-896a-155c7115628a
-# ╟─bc055d25-55f6-4406-a96d-68933a01873c
 # ╟─68ba3408-3ef6-452e-a011-2e17b8305fc0
+# ╟─c817bb66-b11f-4b0b-9dce-b48e00a04bc8
 # ╟─6f8fcc5a-f312-4879-9aeb-2c50556dc200
+# ╟─16d50a4b-9b4d-4454-8d75-2e6db9c61e45
+# ╠═ae98bc88-1aa3-4fb7-9755-20a146a8723f
+# ╟─5317987e-98c6-4a3c-877a-8e9cc60f2e51
+# ╟─2804940d-cf50-40e0-964c-6b2a6ad14690
+# ╟─7425776c-1b87-4446-94e8-4f55c1c7c912
+# ╟─9fad8262-63bd-4681-9336-f098bbb5d30f
 # ╟─1da460a7-91a8-4fb7-b704-99ea528e991f
-# ╟─00000000-0000-0000-0000-000000000001
-# ╟─00000000-0000-0000-0000-000000000002
+# ╟─3f2caf5d-f427-4320-aed4-bca3377d25a5
