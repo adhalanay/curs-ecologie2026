@@ -608,7 +608,7 @@ md"""
 
 # ╔═╡ b932a091-5b08-40b0-a8e2-f833e1620b27
 md"""
-## 📝 7. Recapitulare și exerciții (5 min)
+## 📝 7. Recapitulare și exerciții 
 
 ### 🧠 Recapitulare
 - ↩️ **Integrarea** este operația inversă derivării; primitiva este determinată pînă la o constantă.
