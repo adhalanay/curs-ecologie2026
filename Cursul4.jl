@@ -746,7 +746,7 @@ b) Pescuitul reduce rata efectivă de reproducere ``r``. Ce s-ar putea întîmpl
 hint(md"a) Pentru ``r = 3.8`` sistemul este haotic (``\lambda > 0``): orice eroare de numărare crește exponențial, deci previziunile au sens doar pe cîțiva ani; cote fixe calculate pe baza unei populații „medii” pot fi catastrofale într-un an slab. b) Scăzînd ``r`` coborîm în diagrama de bifurcație spre stînga: un pescuit moderat poate **stabiliza** populația (cicluri, apoi echilibru), dar dacă ``r`` scade sub ``1``, populația dispare.")
 
 # ╔═╡ Cell order:
-# ╠═e7e9e376-adb0-11f1-91f0-f7cc7081a2ec
+# ╟─e7e9e376-adb0-11f1-91f0-f7cc7081a2ec
 # ╟─ce44eb4e-4b93-43fa-9105-1a10e9015ccd
 # ╟─f612f2c6-5756-406d-ae1d-f4d55b03e87f
 # ╟─5a49c8fe-6d17-4ce3-8865-3c0ba68af9c8
