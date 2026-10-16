@@ -2077,10 +2077,10 @@ version = "1.18.0+0"
 
 [[deps.Libmount_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "e2b48382276415b5a5d5282a5dd75a0f0bf4ac84"
+git-tree-sha1 = "b8a91037379e1fd661e9b5ff3d7a770424b1f9f2"
 registries = "General"
 uuid = "4b2f31a3-9ecc-558c-b454-b3730dcb73e9"
-version = "2.42.2+0"
+version = "2.42.4+0"
 
 [[deps.Libtiff_jll]]
 deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "LERC_jll", "Libdl", "XZ_jll", "Zlib_jll", "Zstd_jll"]
