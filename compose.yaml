@@ -2,7 +2,7 @@ services:
   curs:
     build: .
     image: curs-ecologie2026
-    # Rulează cu UID/GID-ul utilizatorului, ca notebook-urile salvate de Pluto să nu devină ale lui root.
+    # Rulează cu UID/GID-ul utilizatorului, ca notebook-urile salvate de Pluto să nu devină ale root-ului.
     init: true
     user: "${UID:-1000}:${GID:-1000}"
     ports:
