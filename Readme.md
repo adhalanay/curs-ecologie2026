@@ -27,8 +27,8 @@ Dacă aveți [Docker](https://www.docker.com/) instalat, nu mai este nevoie de J
     docker compose up
 ````
 
-Apoi deschideți în browser adresa `http://localhost:1234/?secret=…` afișată în terminal (înlocuiți `0.0.0.0` cu `localhost`).
-Notebook-urile sînt citite și salvate direct din directorul proiectului.
+Apoi deschideți în browser `http://localhost:8888` (JupyterLab); Pluto se pornește din Launcher, iar notebook-urile sînt în directorul `course`.
+
 
 Un notebook poate fi rulat și fără browser, pentru a verifica dacă are erori:
 
