@@ -1,4 +1,10 @@
 *
 !Project.toml
 !Manifest.toml
-!docker-entrypoint.sh
+!*.jl
+!*.png
+!*.PNG
+!*.jpg
+!pluto.json
+!course-materials.sh
+partial.jl
