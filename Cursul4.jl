@@ -81,7 +81,6 @@ end
 md"""
 # 🌿 Cursul 4 — Sisteme dinamice discrete și haos
 
-**Durata estimată:** 100 minute
 """
 
 # ╔═╡ e07e94e7-938f-4546-b9cc-71f297ba1234
