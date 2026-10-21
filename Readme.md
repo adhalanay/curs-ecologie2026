@@ -29,9 +29,14 @@ Dacă aveți [Docker](https://www.docker.com/) instalat, nu mai este nevoie de J
 
 Apoi deschideți în browser `http://localhost:8888` (JupyterLab); Pluto se pornește din Launcher, iar notebook-urile sînt în directorul `course`.
 
+## Serverul JupyterHub al cursului
 
-Un notebook poate fi rulat și fără browser, pentru a verifica dacă are erori:
+Pentru lucrul pe serverul JupyterHub (unde se păstrează lucrul vostru, cum folosiți pachetele cursului
+în Pluto și Jupyter, cum instalați pachete suplimentare), citiți [Instructiuni-studenti.md](Instructiuni-studenti.md).
+
+Un notebook poate fi rulat și fără browser, pentru a verifica dacă are erori
+(se folosește versiunea din directorul proiectului, nu copia din imagine):
 
 ````
-    docker compose run --rm curs run Cursul5.jl
+    docker compose run --rm -v .:/work -w /work curs xvfb-run -a julia --project=. Cursul5.jl
 ````
