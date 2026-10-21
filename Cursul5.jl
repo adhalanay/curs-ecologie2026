@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v1.0.3
+# v1.0.4
 
 using Markdown
 using InteractiveUtils
@@ -381,7 +381,7 @@ Ce semnificație biologică are valoarea `2` din matrice? Ce semnificație are v
 # ╟─b4c5d6e7-f8a9-0123-bcde-234567890123
 # ╟─c5d6e7f8-a9b0-1234-cdef-345678901234
 # ╟─d6e7f8a9-b0c1-2345-defa-456789012345
-# ╠═e7f8a9b0-c1d2-3456-efab-567890123456
+# ╟─e7f8a9b0-c1d2-3456-efab-567890123456
 # ╟─f8a9b0c1-d2e3-4567-fabc-678901234567
 # ╟─a9b0c1d2-e3f4-5678-abcd-789012345678
 # ╟─b0c1d2e3-f4a5-6789-bcde-890123456789
