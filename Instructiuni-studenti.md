@@ -9,10 +9,20 @@ Tot ce se află în directorul home (`/home/jovyan`) se păstrează de la o sesi
 
 Ce salvați în afara directorului home se pierde la oprirea serverului.
 
-La fiecare pornire, materialele noi ale cursului sînt copiate în `~/course`. Fișierele existente
-**nu sînt suprascrise**, deci modificările voastre rămîn. Pentru a primi versiunea nouă a unui
-fișier, redenumiți-l sau ștergeți-l și reporniți serverul
-(*File → Hub Control Panel → Stop My Server → Start My Server*).
+La fiecare pornire a serverului, `~/course` este adus la zi cu versiunea cursului de pe GitHub
+(după cîteva secunde; dacă directorul nu apare, reîncărcați pagina):
+
+- lecțiile noi și corecturile ajung automat la voi;
+- **modificările voastre rămîn**: dacă ați schimbat un notebook pe care l-am corectat și eu,
+  corecturile mele se adaugă, iar unde ne-am atins de aceleași rînduri rămîne varianta voastră;
+- un fișier al cursului pe care l-ați șters este adus înapoi, în ultima versiune. Așa obțineți
+  o copie curată a unui notebook stricat: îl ștergeți (sau îl redenumiți, ca să-l păstrați) și reporniți;
+- dacă aveți un fișier propriu cu același nume ca unul nou al cursului, al vostru este redenumit,
+  de exemplu `tema1__20261021163507.jl`.
+
+Repornirea serverului: *File → Hub Control Panel → Stop My Server → Start My Server*. Fără repornire,
+puteți aduce materialele la zi din *Terminal*, cu comanda `course-sync`; închideți înainte notebook-urile
+deschise în Pluto, altfel, la următoarea modificare, Pluto le poate rescrie cu varianta veche.
 
 ## Pachetele cursului
 

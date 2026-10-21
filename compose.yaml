@@ -12,7 +12,7 @@ services:
     # Fără token: portul e legat doar de localhost.
     command: ["start-notebook.py", "--IdentityProvider.token="]
     volumes:
-      # Volum persistent pentru home, ca în JupyterHub; materialele apar în ~/course.
+      # Volum persistent pentru home, ca în JupyterHub; materialele sînt aduse din GitHub în ~/course.
       - home:/home/jovyan
 
 volumes:

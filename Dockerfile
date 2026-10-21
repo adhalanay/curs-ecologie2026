@@ -4,7 +4,9 @@
 #   docker run --rm -p 8888:8888 curs-ecologie2026      # test local, fără JupyterHub
 #
 # În JupyterHub: c.DockerSpawner.image = "curs-ecologie2026" (sau KubeSpawner.image).
-# Notebook-urile sînt copiate în ~/course la pornire (fără să suprascrie ce a modificat studentul).
+# Notebook-urile nu sînt în imagine: la fiecare pornire, course-sync (nbgitpuller) aduce în ~/course
+# versiunea din GitHub, păstrînd modificările studentului. Imaginea se reconstruiește doar cînd se schimbă
+# Project.toml/Manifest.toml (sau Dockerfile-ul).
 
 FROM quay.io/jupyter/base-notebook:python-3.11.10
 
@@ -52,11 +54,15 @@ RUN JUPYTER_DATA_DIR="${CONDA_DIR}/share/jupyter" xvfb-run -a julia -e ' \
 # jupyter_server_config.json; JSON-urile din jupyter_server_config.d/ nu sînt citite pentru ServerProxy.
 COPY pluto.json /usr/local/etc/jupyter/jupyter_server_config.json
 
-# Materialele cursului; vezi .dockerignore pentru ce este exclus (partial.jl, PDF-uri, .xcf).
-COPY Project.toml Manifest.toml *.jl *.png *.PNG *.jpg /opt/course/notebooks/
+# Materialele cursului vin din git; COURSE_REPO/COURSE_BRANCH pot fi schimbate din configurația JupyterHub.
+# nbgitpuller e instalat aici, nu lîngă jupyter-server-proxy, ca să nu invalideze stratul precompilat.
+RUN pip install --no-cache-dir nbgitpuller \
+    && fix-permissions "${CONDA_DIR}"
+ENV COURSE_REPO=https://github.com/adhalanay/curs-ecologie2026 \
+    COURSE_BRANCH=main
+COPY course-sync /usr/local/bin/course-sync
 COPY course-materials.sh /usr/local/bin/before-notebook.d/course-materials.sh
-RUN chmod a+rx /usr/local/bin/before-notebook.d/course-materials.sh \
-    && fix-permissions /opt/course/notebooks
+RUN chmod a+rx /usr/local/bin/course-sync /usr/local/bin/before-notebook.d/course-materials.sh
 
 USER ${NB_UID}
 WORKDIR /home/${NB_USER}

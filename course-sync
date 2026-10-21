@@ -1,0 +1,40 @@
+#!/bin/bash
+# Sincronizează ~/course cu depozitul git al cursului (nbgitpuller), păstrînd modificările studentului:
+# fișierele noi și corecturile ajung la student, iar unde modificările lui se suprapun cu ale cursului, cîștigă ale lui.
+#
+#   course-sync        # rulat în fundal la pornirea serverului (course-materials.sh); se poate rula și din Terminal
+#
+# Variabile: COURSE_REPO, COURSE_BRANCH, COURSE_DIR (implicit ~/course).
+
+REPO="${COURSE_REPO:-https://github.com/adhalanay/curs-ecologie2026}"
+BRANCH="${COURSE_BRANCH:-main}"
+DEST="${COURSE_DIR:-${HOME}/course}"
+
+exec 9>"/tmp/course-sync-$(id -u).lock"
+flock -n 9 || { echo "course-sync rulează deja." >&2; exit 1; }
+
+# Migrare: ~/course copiat de imaginile vechi (cp -n), fără depozit git.
+if [ -d "$DEST" ] && { [ ! -e "$DEST/.git" ] || ! git -C "$DEST" rev-parse -q --verify HEAD >/dev/null; }; then
+    echo "Migrare $DEST la depozitul git al cursului..."
+    (
+        cd "$DEST" || exit 1
+        git init -q -b "$BRANCH"
+        git remote add origin "$REPO" 2>/dev/null || git remote set-url origin "$REPO"
+        git fetch -q origin "$BRANCH" || exit 1    # tot istoricul, pentru comparația de mai jos
+        git reset -q "origin/$BRANCH"
+        # Un fișier identic cu o versiune veche din istoric nu a fost modificat de student: se aduce la zi.
+        git diff --name-only --diff-filter=M -z | while IFS= read -r -d '' f; do
+            if git cat-file -e "$(git hash-object -- "$f")" 2>/dev/null; then
+                git checkout -q "origin/$BRANCH" -- "$f" && echo "Actualizat: $f"
+            fi
+        done
+    ) || { echo "Migrarea a eșuat; se reîncearcă la următoarea pornire." >&2; exit 1; }
+fi
+
+"${CONDA_DIR:-/opt/conda}/bin/gitpuller" "$REPO" "$BRANCH" "$DEST" || exit 1
+
+# Notebook-urile fac Pkg.activate("."): mediul din ~/course trebuie să fie cel precompilat în imagine,
+# chiar dacă Manifest.toml din depozit a fost schimbat înainte de reconstruirea imaginii.
+if [ -n "${JULIA_PROJECT:-}" ] && [ -f "${JULIA_PROJECT}/Manifest.toml" ]; then
+    cp -f "${JULIA_PROJECT}/Project.toml" "${JULIA_PROJECT}/Manifest.toml" "$DEST/"
+fi

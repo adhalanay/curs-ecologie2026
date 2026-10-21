@@ -1,10 +1,6 @@
 *
 !Project.toml
 !Manifest.toml
-!*.jl
-!*.png
-!*.PNG
-!*.jpg
 !pluto.json
 !course-materials.sh
-partial.jl
+!course-sync

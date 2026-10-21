@@ -28,6 +28,7 @@ Dacă aveți [Docker](https://www.docker.com/) instalat, nu mai este nevoie de J
 ````
 
 Apoi deschideți în browser `http://localhost:8888` (JupyterLab); Pluto se pornește din Launcher, iar notebook-urile sînt în directorul `course`.
+Ele sînt aduse de pe GitHub la fiecare pornire (e nevoie de internet), deci în container apare ultima versiune publicată, nu copia locală.
 
 ## Serverul JupyterHub al cursului
 
