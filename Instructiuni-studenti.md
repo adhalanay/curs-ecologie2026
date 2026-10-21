@@ -1,6 +1,6 @@
 # Lucrul pe serverul JupyterHub al cursului
 
-## Unde se păstrează lucrul vostru
+## Unde se păstrează ce lucrați
 
 Tot ce se află în directorul home (`/home/jovyan`) se păstrează de la o sesiune la alta:
 
@@ -42,7 +42,7 @@ fișierului, din partea de sus a notebook-ului, scrieți calea completă, de exe
 
 ### În Jupyter
 
-Alegeți kernel-ul **Ecologie 2026 1.13**; `using CairoMakie` etc. funcționează imediat.
+Alegeți kernel-ul **Ecologie 2026**; `using CairoMakie` etc. funcționează imediat.
 
 ## Pachete suplimentare
 
