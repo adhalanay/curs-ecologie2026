@@ -22,7 +22,7 @@ Pachetele folosite la curs (CairoMakie, DifferentialEquations, PlutoUI etc.) sî
 ### În Pluto
 
 Notebook-urile cursului activează singure mediul cursului. Pentru un notebook nou, începeți cu
-celula următoare și salvați notebook-ul în `~/course`:
+celula următoare:
 
 ```julia
 begin
@@ -32,8 +32,13 @@ begin
 end
 ```
 
-Fără `Pkg.activate`, Pluto creează un mediu separat pentru notebook și poate descărca și compila
-din nou pachetele, ceea ce poate dura multe minute.
+Fără `Pkg.activate`, Pluto creează un mediu separat pentru notebook și descarcă și compilează
+din nou pachetele la fiecare sesiune, ceea ce poate dura multe minute.
+
+**Salvați imediat notebook-ul nou în `~/course`.** Pluto salvează notebook-urile noi implicit
+într-un director din afara home-ului, care se pierde la oprirea serverului. În cîmpul cu numele
+fișierului, din partea de sus a notebook-ului, scrieți calea completă, de exemplu
+`/home/jovyan/course/tema1.jl`, și apăsați *Enter*.
 
 ### În Jupyter
 
@@ -41,7 +46,8 @@ Alegeți kernel-ul **Ecologie 2026 1.13**; `using CairoMakie` etc. funcționeaz�
 
 ## Pachete suplimentare
 
-Instalați-le într-un mediu propriu, în directorul home:
+Pachetele instalate de voi **nu se păstrează** între sesiuni: la oprirea serverului fișierele
+lor se șterg. Se păstrează doar lista lor, dacă le instalați într-un mediu propriu din directorul home:
 
 ```julia
 using Pkg
@@ -49,10 +55,16 @@ Pkg.activate(joinpath(homedir(), "mywork"))
 Pkg.add("NumePachet")
 ```
 
-În sesiunile următoare activați din nou același mediu (`Pkg.activate(joinpath(homedir(), "mywork"))`)
-și pachetul este disponibil.
+În fiecare sesiune nouă activați același mediu și reinstalați pachetele din listă
+(durează cîteva minute, în funcție de pachete):
+
+```julia
+using Pkg
+Pkg.activate(joinpath(homedir(), "mywork"))
+Pkg.instantiate()
+```
 
 - Nu folosiți `Pkg.add` direct din kernel-ul Jupyter, fără `Pkg.activate`: mediul acelui kernel
-  nu se păstrează, iar după repornire pachetul nu mai apare.
+  nu se păstrează, iar după repornire nici pachetul, nici lista nu mai există.
 - Nu adăugați pachete în mediul din `~/course`: se pot schimba versiunile pachetelor cursului,
   iar recompilarea durează mult.
