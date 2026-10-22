@@ -81,6 +81,7 @@ end
 md"""
 # 🌿 Cursul 4 — Sisteme dinamice discrete și haos
 
+**Durata estimată:** 100 minute
 """
 
 # ╔═╡ e07e94e7-938f-4546-b9cc-71f297ba1234
@@ -700,11 +701,14 @@ hint(md"a) ``x = x e^{r(1-x)}`` dă ``x^* = 0`` sau ``e^{r(1-x)} = 1``, adică `
 
 # ╔═╡ ae98bc88-1aa3-4fb7-9755-20a146a8723f
 # EXERCIȚIUL 1 c): completați și rulați
-# fig_ex1 = Figure(size = (900, 450))
-# ax_ex1 = Axis(fig_ex1[1, 1], xlabel = "xₙ", ylabel = "xₙ₊₁", title = "Ricker, r = 1.5")
-# panza!(ax_ex1, x -> f_ricker(x, 1.5), 0.2, 30, 0, 3)
-# ...
-# fig_ex1
+begin
+fig_ex1 = Figure(size = (900, 450))
+ax_ex1 = Axis(fig_ex1[1, 1], xlabel = "xₙ", ylabel = "xₙ₊₁", title = "Ricker, r = 1.5")
+panza!(ax_ex1, x -> f_ricker(x, 1.5), 0.2, 30, 0, 3)
+ax_ex2 = Axis(fig_ex1[1, 2], xlabel = "xₙ", ylabel = "xₙ₊₁", title = "Ricker, r = 1.5")
+panza!(ax_ex2, x -> f_ricker(x, 2.3), 0.2, 30, 0, 3)
+fig_ex1
+end
 
 # ╔═╡ 5317987e-98c6-4a3c-877a-8e9cc60f2e51
 md"""
