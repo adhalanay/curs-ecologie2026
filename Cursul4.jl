@@ -483,7 +483,8 @@ let
 		ylabel = "Comportamentul pe termen lung (xₙ)")
 	# bifurcațiile de dublare a perioadei și începutul haosului
 	r_bif = filter(r -> r_min < r < r_sus, [3.0, 1 + sqrt(6), 3.5441, 3.5699])
-	vlines!(ax1, r_bif, color = (:crimson, 0.5), linestyle = :dash)
+	# Makie nu poate desena vlines! cu un vector gol (fereastră fără bifurcații marcate)
+	isempty(r_bif) || vlines!(ax1, r_bif, color = (:crimson, 0.5), linestyle = :dash)
 	scatter!(ax1, r_pct, x_pct, markersize = 1.5, color = (:navy, 0.25), rasterize = 2)
 
 	ax2 = Axis(fig[2, 1], title = "Exponentul Liapunov",
