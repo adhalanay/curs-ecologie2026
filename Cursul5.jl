@@ -35,7 +35,7 @@ begin
 	using Printf
 
 	# Setăm o temă vizuală curată și modernă pentru grafice
-	CairoMakie.activate!(type = "svg")
+	CairoMakie.activate!(type = "png", px_per_unit = 2)  # SVG-urile cu traiectorii dese au zeci de MB și rup conexiunea prin proxy-ul JupyterHub
 	set_theme!(theme_minimal())
 
 	TableOfContents()
