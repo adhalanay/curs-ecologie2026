@@ -4,7 +4,7 @@
 #> [frontmatter]
 #> title = "Cursul V"
 #> description = "Sisteme dinamice în mai multe dimensiuni"
-#>
+#> 
 #>     [[frontmatter.author]]
 #>     name = "Andrei Halanay"
 
