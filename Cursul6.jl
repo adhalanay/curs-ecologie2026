@@ -27,12 +27,14 @@ end
 begin
 	using Pkg
 	Pkg.activate(".")
-	using Makie, CairoMakie, WGLMakie
+	using Makie, CairoMakie
 	using PlutoUI
 	using PlutoTeachingTools
 	using Roots
 	using Printf
 
+	# PNG, nu WGLMakie: WGLMakie încarcă figurile de pe localhost:9384, adresă la care browserul nu ajunge prin JupyterHub
+	CairoMakie.activate!(type = "png", px_per_unit = 2)
 	set_theme!(theme_minimal())
 	TableOfContents()
 end
