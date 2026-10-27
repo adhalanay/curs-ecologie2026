@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v1.0.3
+# v1.0.4
 
 using Markdown
 using InteractiveUtils
@@ -20,7 +20,7 @@ end
 begin
     using Pkg
     Pkg.activate(".")
-    using Makie, CairoMakie
+    using Makie, CairoMakie,WGLMakie
     using PlutoUI
     using DifferentialEquations
     using PlutoTeachingTools
@@ -35,7 +35,6 @@ WidthOverDocs()
 md"""
 # 📈 Cursul 6 — Comportament Periodic și Bifurcații în Sistemele Dinamice
 
-**Durata estimată:** 100 minute
 """
 
 # ╔═╡ a1b2c3d4-0001-4a00-8000-000000000002
@@ -49,7 +48,7 @@ md"""
 
 # ╔═╡ a1b2c3d4-0002-4a00-8000-000000000002
 md"""
-## 🌀 1. Comportament Periodic și Atractori (30 min)
+## 🌀 1. Comportament Periodic și Atractori 
 
 Până acum am studiat sisteme care tind către puncte de echilibru. În natură, însă, multe fenomene prezintă **oscilații persistente**: bătăile inimii, ciclurile circadiene, oscilațiile glicemiei sau interacțiunea prădător-pradă. 
 """
@@ -218,7 +217,7 @@ end
 # ╔═╡ a1b2c3d4-0012-4a00-8000-000000000012
 md"""
 ---
-## 🦋 2. Bifurcații Locale (50 min)
+## 🦋 2. Bifurcații Locale 
 
 Am văzut că modificarea unui parametru poate schimba complet comportamentul unui sistem (de la echilibru stabil la oscilații). O **bifurcație** este o modificare calitativă a structurii spațiului fazelor (numărul sau stabilitatea echilibrelor) atunci când un parametru trece printr-o valoare critică.
 """
@@ -441,7 +440,7 @@ md"""
 # ╔═╡ a1b2c3d4-0030-4a00-8000-000000000030
 md"""
 ---
-## 📝 3. Concluzii și Sinteză (20 min)
+## 📝 3. Concluzii și Sinteză 
 
 ### Rezumat al conceptelor cheie
 
@@ -470,7 +469,7 @@ md"""
 # ╟─a1b2c3d4-0002-4a00-8000-000000000002
 # ╟─a1b2c3d4-0002-4a00-8000-000000000003
 # ╟─a1b2c3d4-0003-4a00-8000-000000000003
-# ╠═a1b2c3d4-0004-4a00-8000-000000000004
+# ╟─a1b2c3d4-0004-4a00-8000-000000000004
 # ╟─a1b2c3d4-0005-4a00-8000-000000000005
 # ╟─a1b2c3d4-0006-4a00-8000-000000000006
 # ╟─a1b2c3d4-0007-4a00-8000-000000000007
@@ -496,4 +495,4 @@ md"""
 # ╟─a1b2c3d4-0027-4a00-8000-000000000027
 # ╟─a1b2c3d4-0028-4a00-8000-000000000028
 # ╟─a1b2c3d4-0029-4a00-8000-000000000029
-# ╠═a1b2c3d4-0030-4a00-8000-000000000030
+# ╟─a1b2c3d4-0030-4a00-8000-000000000030
