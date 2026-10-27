@@ -4,7 +4,7 @@
 #> [frontmatter]
 #> title = "Cursul VI"
 #> description = "Comportament periodic și bifurcații"
-#>
+#> 
 #>     [[frontmatter.author]]
 #>     name = "Andrei Halanay"
 
