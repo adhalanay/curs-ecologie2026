@@ -117,7 +117,7 @@ md"""
 
 # ╔═╡ 644a8297-b028-4515-b29f-0600e67ac8f9
 md"""
-## 🔁 0. Ce știm deja (5 min)
+## 🔁 0. Ce știm deja
 * **Cursul 4:** modelul de creștere geometrică ``x_{n+1} = \lambda\,x_n`` are soluția ``x_n = \lambda^n x_0``: populația crește dacă ``\lambda > 1`` și scade spre ``0`` dacă ``0 < \lambda < 1``.
 * **Cursul 5:** am împărțit femelele ursului negru american (*Ursus americanus*) în **juvenili** ``J`` și **adulți** ``A``. În fiecare an ``65\%`` dintre juvenili rămîn juvenili, ``25\%`` se maturizează, fiecare adult are în medie ``0.5`` pui femele, iar ``90\%`` dintre adulți supraviețuiesc:
 ```math
@@ -137,7 +137,7 @@ PlutoUI.LocalResource("./Black_Bear.jpg", :width => 600)
 
 # ╔═╡ 647b474a-ec17-465b-8edb-c9f7ae631949
 md"""
-## 🧭 1. Vectori, aplicații liniare și matrice (15 min)
+## 🧭 1. Vectori, aplicații liniare și matrice
 
 ### 1.1. Starea populației este un vector
 Starea unei populații cu două stadii este un **vector** din ``\mathbb{R}^2``, pe care îl scriem pe coloană:
@@ -198,7 +198,7 @@ hint(md"``L\,(0, 10) = (5, 9)``: zece adulți au în medie ``5`` pui femele, iar
 
 # ╔═╡ c025dcf9-37bd-43c9-a77f-540d33389e08
 md"""
-## 🔄 2. Modele matriciale de populație (20 min)
+## 🔄 2. Modele matriciale de populație
 
 ### 2.1. Graful ciclului de viață
 Un model matricial se construiește pornind de la **graful ciclului de viață**: cîte un nod pentru fiecare stadiu și cîte o săgeată pentru fiecare mod în care un individ dintr-un stadiu contribuie, după un an, la un stadiu (eventual același). Săgeata de la stadiul ``j`` la stadiul ``i`` poartă valoarea ``l_{ij}``, elementul din rîndul ``i`` și coloana ``j`` al matricei. Pentru ursul negru (săgeata de reproducere este roșie):
@@ -285,7 +285,7 @@ md"""
 
 # ╔═╡ d3e5263a-3fe4-4e6b-94c2-ab0de2d53b2b
 md"""
-## 🎯 3. Valori și vectori proprii (35 min)
+## 🎯 3. Valori și vectori proprii
 
 ### 3.1. Direcții care nu se rotesc
 În Verificarea rapidă din secțiunea 1 am găsit ``L\,(20, 20) = 1.15\,(20, 20)``. În general, o matrice **rotește** și **alungește** vectorii. Căutăm vectorii nenuli ``\mathbf{v}`` pe care matricea doar îi alungește sau îi scurtează, fără să le schimbe direcția:
@@ -520,7 +520,7 @@ hint(md"a) ``\operatorname{tr} M = 1.3``, ``\det M = 0.4 - 0.04 = 0.36``, deci `
 
 # ╔═╡ 1e8b77b3-525d-4b50-ab0f-31b4a875a204
 md"""
-## 🐢 4. Aplicație: cum salvăm țestoasa marină *Caretta caretta*? (15 min)
+## 🐢 4. Aplicație: cum salvăm țestoasa marină *Caretta caretta*?
 **Țestoasa marină cu cap mare** (*Caretta caretta*) trăiește peste ``50`` de ani și se maturizează abia după ``20`` de ani. Femelele revin pe plajele unde s-au născut ca să își depună ouăle. În anii 1980 populația de pe coasta de sud-est a SUA era în declin, iar eforturile de conservare se concentrau pe **protejarea cuiburilor** de pe plaje. D. Crouse, L. Crowder și H. Caswell (1987) au construit un model matricial cu ``7`` stadii pentru a afla unde ar avea efect cea mai mare intervenție:
 
 | Stadiul | | Vîrsta (ani) |
@@ -628,7 +628,7 @@ hint(md"Stadiile ``5`` și ``6`` durează cîte un singur an, iar supraviețuire
 
 # ╔═╡ 8f2c515a-37a9-4e4a-982f-9b57fa44d7d9
 md"""
-## 📝 5. Recapitulare și exerciții (10 min)
+## 📝 5. Recapitulare și exerciții
 
 ### 🧠 Recapitulare
 - 🧭 Starea unei populații cu ``m`` stadii este un vector din ``\mathbb{R}^m``. O aplicație **liniară** este determinată de imaginile vectorilor bazei, așezate pe coloanele **matricei** ei; coloana ``j`` spune ce devine într-un an un individ din stadiul ``j``.
