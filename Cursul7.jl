@@ -96,13 +96,13 @@ begin
 		$(join(el, "\n"))
 		</svg>""")
 	end
+	nothing
 end
 
 # ╔═╡ a1b2c3d4-0001-4a00-8000-000000000001
 md"""
 # 🧮 Cursul 7 — Algebră liniară și modele matriciale
 
-**Durata estimată:** 100 minute
 """
 
 # ╔═╡ 186cde3c-94c6-46cf-86b7-bc61461674d2
@@ -492,8 +492,49 @@ md"""
 
 > 🧭 **Teorema Perron–Frobenius.** De ce valoarea proprie dominantă a unui model de populație este un număr **real și pozitiv**, iar vectorul ei propriu are toate componentele **pozitive**, adică este o adevărată structură de populație? Dacă matricea are toate elementele ``\ge 0``, graful ciclului de viață permite să se ajungă din orice stadiu în orice alt stadiu, iar cel mai mare divizor comun al lungimilor ciclurilor grafului este ``1`` (de exemplu, dacă graful are o buclă), atunci există o valoare proprie reală ``\lambda_1 > 0``, mai mare în modul decît toate celelalte, cu un vector propriu cu toate componentele pozitive.
 
-### 3.5. Calculul în Julia
-Pentru matrice mai mari, valorile și vectorii proprii se calculează numeric, cu funcțiile `eigvals` și `eigvecs` din pachetul `LinearAlgebra`. Coeficienții ``c_1, c_2`` se obțin rezolvînd un sistem liniar: în Julia, `[1 2; 1 -1] \ [100, 10]`.
+### 3.5. Matrice de dimensiune mai mare
+Pentru o matrice ``m \times m``, ecuația caracteristică ``\det(L - \lambda I) = 0`` este o ecuație polinomială de gradul ``m``. Ce rămîne valabil și ce se schimbă față de cazul ``2 \times 2``?
+* **Cîte valori proprii?** Socotite cu multiplicitate și împreună cu cele complexe, exact ``m``. Suma lor este urma ``\operatorname{tr} L``, iar produsul lor este ``\det L``, ca în cazul ``2 \times 2``.
+* **Cum le calculăm?** Determinantul se dezvoltă după o linie sau o coloană. Pentru matricele Leslie, care au multe zerouri, ecuația este simplă (Exercițiul 4 d). În general însă rădăcinile nu se pot găsi cu o formulă practică: pentru ``m = 3`` și ``m = 4`` formulele există, dar sînt foarte complicate, iar pentru ``m \ge 5`` nu există nicio formulă cu radicali (teorema Abel–Ruffini). Țestoasa din secțiunea 4 are ``7`` stadii, deci o ecuație de gradul ``7``: valorile proprii se calculează **numeric**.
+* **Metoda puterii.** Pentru ``\lambda_1`` nu avem nevoie de ecuația caracteristică, ajunge să iterăm modelul. Din ``\mathbf{x}_n \approx c_1\lambda_1^n\mathbf{v}_1`` rezultă că raportul ``N_{n+1}/N_n`` al efectivelor totale tinde la ``\lambda_1``, iar structura ``\mathbf{x}_n / N_n`` tinde la ``\mathbf{v}_1``. Populația „calculează” singură valoarea proprie dominantă. Tot așa lucrează și metodele numerice pentru matrice cu milioane de linii, de exemplu algoritmul PageRank al lui Google.
+* **Valori proprii complexe.** O matrice cu elemente reale poate avea valori proprii complexe, care apar în perechi conjugate ``r\,e^{\pm i\theta}``. O astfel de pereche aduce în ``\mathbf{x}_n`` un termen de forma ``r^n\cos(n\theta + \varphi)``: în regimul tranzitoriu, generații numeroase alternează cu generații rare (**valuri de generații**). Perioada valurilor este ``360^\circ/\theta`` ani, iar raportul lor față de termenul dominant se înmulțește în fiecare an cu ``r/\lambda_1``. Le vom studia în Cursul 8.
+
+**Exemplu.** Două specii trăiesc trei ani și au ``\lambda_1 = 1`` (populația nu crește și nu scade pe termen lung):
+```math
+S = \begin{pmatrix} 0 & 0 & 6 \\ 0.5 & 0 & 0 \\ 0 & 1/3 & 0 \end{pmatrix}, \qquad
+P = \begin{pmatrix} 0 & 1 & 3 \\ 0.5 & 0 & 0 \\ 0 & 1/3 & 0 \end{pmatrix}.
+```
+Specia ``S`` este **semelpară**: se reproduce o singură dată, la trei ani, apoi moare. Ecuația ei caracteristică este ``\lambda^3 = 1``, cu soluțiile ``1`` și ``-\frac12 \pm \frac{\sqrt3}{2}\,i``, **toate de modul** ``1``. Specia ``P`` este **iteropară**: se reproduce la doi și la trei ani. Ecuația ei este ``\lambda^3 = 0.5\,\lambda + 0.5``, cu soluțiile ``1`` și ``-\frac12 \pm \frac12\,i``, de modul ``\approx 0.71``. Pornim, în ambele cazuri, cu ``100`` de nou-născuți.
+"""
+
+# ╔═╡ 06c1058a-bb6b-4053-8a4a-27c09100d55d
+let
+	S = [0 0 6; 0.5 0 0; 0 1/3 0]     # se reproduce doar la trei ani
+	P = [0 1 3; 0.5 0 0; 0 1/3 0]     # se reproduce la doi și la trei ani
+	fmt(z) = abs(imag(z)) < 1e-9 ? @sprintf("%.2f", real(z)) :
+		@sprintf("%.2f ± %.2fi", real(z), abs(imag(z)))
+	ani = 24
+	fig = Figure(size = (1200, 420))
+	for (j, (M, titlu, cul)) in enumerate([(S, "Specia semelpară S", :crimson),
+			(P, "Specia iteropară P", :royalblue)])
+		λ = sort(eigvals(M), by = abs, rev = true)
+		N = sum.(iteratii(M, [100.0, 0.0, 0.0], ani))
+		ax = Axis(fig[1, j], title = titlu,
+			subtitle = "valorile proprii: " * join(unique(fmt.(λ)), ",   "),
+			xlabel = "Anul (n)", ylabel = "Efectivul total Nₙ", limits = (-0.5, ani + 0.5, 0, 110))
+		scatterlines!(ax, 0:ani, N, color = cul, linewidth = 2)
+	end
+	fig
+end
+
+# ╔═╡ e23f3f92-13fe-4f6c-a4ac-569244845df1
+md"""
+**Ce observăm:**
+* la specia **semelpară**, efectivul se repetă la fiecare trei ani (``100``, ``50``, ``16.7``, ``100``, …), iar valurile **nu se sting niciodată**. Cele trei valori proprii au același modul, deci nu există o valoare proprie strict dominantă. Graful ciclului de viață are un singur ciclu, de lungime ``3``, așa că nu este îndeplinită condiția despre cel mai mare divizor comun din teorema Perron–Frobenius. Așa se explică generațiile sincronizate din natură, de exemplu cicadele periodice, care ies din pămînt toate odată, o dată la ``13`` sau ``17`` ani;
+* la specia **iteropară**, graful are cicluri de lungimi ``2`` și ``3``, cu cel mai mare divizor comun ``1``. Valurile, cu perioada ``360^\circ / 135^\circ \approx 2.7`` ani, se sting cu factorul ``0.71`` pe an, iar populația se stabilizează.
+
+### 3.6. Calculul în Julia
+Funcțiile `eigvals` și `eigvecs` din pachetul `LinearAlgebra` calculează numeric valorile și vectorii proprii ai unei matrice de orice dimensiune. Coeficienții ``c_1, c_2`` se obțin rezolvînd un sistem liniar: în Julia, `[1 2; 1 -1] \ [100, 10]`.
 """
 
 # ╔═╡ dde6ae4f-e276-427a-9e00-817287f73923
@@ -633,7 +674,7 @@ md"""
 ### 🧠 Recapitulare
 - 🧭 Starea unei populații cu ``m`` stadii este un vector din ``\mathbb{R}^m``. O aplicație **liniară** este determinată de imaginile vectorilor bazei, așezate pe coloanele **matricei** ei; coloana ``j`` spune ce devine într-un an un individ din stadiul ``j``.
 - 🔄 Modelele matriciale ``\mathbf{x}_{n+1} = L\,\mathbf{x}_n`` se construiesc din **graful ciclului de viață** (Leslie: clase de vîrstă; Lefkovitch: stadii). Succesiunea a doi ani corespunde **produsului** matricelor, care **nu este comutativ**.
-- 🎯 **Valori și vectori proprii:** ``L\mathbf{v} = \lambda\mathbf{v}``. Valorile proprii sînt rădăcinile **ecuației caracteristice** ``\det(L - \lambda I) = 0``; pentru o matrice ``2 \times 2``: ``\lambda^2 - (\operatorname{tr} L)\,\lambda + \det L = 0``.
+- 🎯 **Valori și vectori proprii:** ``L\mathbf{v} = \lambda\mathbf{v}``. Valorile proprii sînt rădăcinile **ecuației caracteristice** ``\det(L - \lambda I) = 0``; pentru o matrice ``2 \times 2``: ``\lambda^2 - (\operatorname{tr} L)\,\lambda + \det L = 0``. O matrice ``m \times m`` are ``m`` valori proprii (unele pot fi complexe), care în practică se calculează numeric.
 - 📈 ``\mathbf{x}_n = c_1\lambda_1^n\mathbf{v}_1 + c_2\lambda_2^n\mathbf{v}_2 + \dots``: pe termen lung domină **valoarea proprie dominantă** ``\lambda_1`` (rata de creștere), iar structura populației tinde la vectorul propriu ``\mathbf{v}_1`` (**distribuția stabilă pe stadii**). Ceilalți termeni descriu **regimul tranzitoriu**.
 - 🐢 Modelele matriciale arată **unde** trebuie să acționăm: la țestoasa *Caretta caretta*, protejarea juvenililor mari și a adulților contează mult mai mult decît protejarea ouălor.
 
@@ -642,6 +683,8 @@ md"""
 | ``\lambda_1 > 1`` | creștere geometrică, cu o structură stabilă pe stadii | ursul, an bun (``\lambda_1 = 1.15``) |
 | ``\lambda_1 < 1`` | declin geometric | ursul, an prost (``\lambda_1 = 0.9``); țestoasa (``\lambda_1 \approx 0.945``) |
 | ``\lambda_2 < 0`` | regim tranzitoriu care oscilează | adulți cu viață scurtă (``\lambda_2 = -0.6``) |
+| ``\lambda_{2,3}`` complexe | valuri de generații, care se sting dacă ``\lvert\lambda_2\rvert < \lambda_1`` | specia iteropară ``P`` |
+| ``\lvert\lambda_2\rvert = \lambda_1`` | valuri care nu se sting | specia semelpară ``S`` |
 
 ---
 ### ✍️ Exerciții
@@ -758,6 +801,8 @@ hint(md"Pentru ``k = 1.5`` obținem ``\lambda_1 \approx 0.966``, iar ``\lambda_1
 # ╟─ac76b83d-2190-4a7d-b705-f92d51798d0d
 # ╟─0c6b2c43-3e55-4acc-8b17-c200d070bc0d
 # ╟─abadcb6b-3501-4f24-9d75-c00506be86fe
+# ╟─06c1058a-bb6b-4053-8a4a-27c09100d55d
+# ╟─e23f3f92-13fe-4f6c-a4ac-569244845df1
 # ╠═dde6ae4f-e276-427a-9e00-817287f73923
 # ╟─9eee84cd-35ac-489d-b00c-62a9185c623e
 # ╟─65700614-5396-4e53-9841-fe64d2876b9c
