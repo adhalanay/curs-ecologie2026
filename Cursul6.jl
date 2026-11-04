@@ -117,6 +117,7 @@ begin
 			echilibru!(ax, e, 0.0, abs(d) < 1e-8 ? nothing : d < 0)
 		end
 	end
+	nothing
 end
 
 # ╔═╡ a1b2c3d4-0001-4a00-8000-000000000001
@@ -235,7 +236,7 @@ Coeficientul de frecare depinde acum de viteză:
 Ciclul limită este curba pe care, de-a lungul unei perioade, energia primită este egală cu energia pierdută.
 
 ### ✅ Verificare rapidă
-Energia ancii este ``E = \frac{1}{2}\left(x^2 + v^2\right)``. Calculați ``E'`` cu regula lanțului, folosind ecuațiile clarinetului. Unde crește energia și unde scade? Poate ciclul limită să rămînă în întregime în banda ``\lvert v\rvert < 1``?
+Energia ansei este ``E = \frac{1}{2}\left(x^2 + v^2\right)``. Calculați ``E'`` cu regula lanțului, folosind ecuațiile clarinetului. Unde crește energia și unde scade? Poate ciclul limită să rămînă în întregime în banda ``\lvert v\rvert < 1``?
 """
 
 # ╔═╡ 672a0d81-5c6c-4906-a828-8c847dd4b80b
